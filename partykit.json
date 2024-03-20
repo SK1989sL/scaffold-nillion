@@ -1,0 +1,6 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "nillion-code-party",
+  "main": "party/index.js",
+  "compatibilityDate": "2024-03-19"
+}

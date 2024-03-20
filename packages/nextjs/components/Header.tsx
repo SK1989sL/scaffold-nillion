@@ -24,6 +24,10 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/nillion",
   },
   {
+    label: "Nillion Code Party",
+    href: "/codeparty",
+  },
+  {
     label: "Debug Contracts",
     href: "/debug",
     icon: <BugAntIcon className="h-4 w-4" />,
