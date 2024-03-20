@@ -1,15 +1,49 @@
 import type * as Party from "partykit/server";
 
+type NillionConfig = {
+  cluster_id: string;
+  bootnodes: string[];
+  payments_config: {
+    rpc_endpoint: string;
+    signer: {
+      wallet: {
+        "chain_id": number;
+      };
+    };
+    smart_contract_addresses: {
+      "blinding_factors_manager": string;
+      "payments": string;
+    };
+  };
+};
 
 type BookEntry = {
   handle: string;
   peerid: string;
 };
 
-type PhoneBook = { [key: string]: BookEntry }
+type PhoneBook = { [key: string]: NillionConfig | BookEntry };
 
 export default class Server implements Party.Server {
-  phonebook: PhoneBook = {};
+
+  config: NillionConfig = {
+    cluster_id: "f592f8ea-7651-4ab8-b692-ef149b783dc9",
+    bootnodes: [
+      "/dns/node-1.testnet-fe.nillion-network.nilogy.xyz/tcp/14211/wss/p2p/12D3KooWNbB2dobuVpH5qetmWnamsKr1G9rC5Sbvj2UsMt3jvQxK",
+    ],
+    payments_config: {
+      rpc_endpoint: "https://rpc-endpoint.testnet-fe.nilogy.xyz",
+      signer: {
+        wallet: { chain_id: 22255222 },
+      },
+      smart_contract_addresses: {
+        blinding_factors_manager: "0xf66cb23aa5857ae1d34a23ce385fa78495c50c69",
+        payments: "0xc166ce8bfc56e4493ffd43a99db234a9f0413443",
+      },
+    },
+  };
+
+  phonebook: PhoneBook = { config: this.config };
 
   constructor(readonly room: Party.Room) {}
 
