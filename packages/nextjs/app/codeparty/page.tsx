@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { NextPage } from "next";
 import CopyToClipboard from "react-copy-to-clipboard";
+import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+
+import {
+  Button,
+  Checkbox,
+  CheckboxGroup,
+  Heading,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Stack,
+  Text,
+  Textarea,
+  useDisclosure,
+} from "@chakra-ui/react";
 import {
   adjectives,
   animals,
@@ -18,49 +38,38 @@ import {
 } from "@heroicons/react/24/outline";
 import { Web3 } from "web3";
 
+import { InputBase } from "~~/components/scaffold-eth";
 import { Address } from "~~/components/scaffold-eth";
 import { usePartyBackend } from "~~/hooks/nillion";
 import { shortenKeyHelper } from "~~/utils/scaffold-eth";
 
-function Modal({ isOpen, onClose, children }) {
-  if (!isOpen) return null;
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div style={{ background: "white", padding: 20 }}>
-        {children}
-        <button onClick={onClose}>Close</button>
-      </div>
-    </div>
-  );
-}
-
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
   const { partyState, dispatch } = usePartyBackend();
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
+  const [nadalang, setNadalang] = useState(`
+party1 = Party(name="Party1")
+party2 = Party(name="Party2")
+my_int1 = SecretInteger(Input(name="my_int1", party=party1))
+my_int2 = SecretInteger(Input(name="my_int2", party=party2))
+
+x = my_int1 * my_int2 output = x.reveal() * Integer(3)
+
+return [Output(output, "my_output", party1)] `);
+
   const [client, setClient] = useState(null);
   const [nillion, setNillion] = useState(null);
+  const [url, setUrl] = useState<string>();
 
-  const [isModalOpen, setIsModalOpen] = useState(true);
+  const onNadalangChange = useCallback((val, viewUpdate) => {
+    console.log("val:", val);
+    setNadalang(val);
+  }, []);
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
   useEffect(() => {
     if (!userKey) return;
     const myName = uniqueNamesGenerator({
@@ -233,17 +242,53 @@ const Home: NextPage = () => {
                 <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-m rounded-3xl">
                   Connected as {codeName} : {userKey}
                   <hr />
-                  <pre>{JSON.stringify(partyState, null, 4)}</pre>
+                  <Text as="kbd" align="left">
+                    {JSON.stringify(partyState, null, 4)}
+                  </Text>
                 </div>
               )}
           </div>
         </div>
       </div>
       <div>
-        <button onClick={openModal}>Open Modal</button>
-        <Modal isOpen={isModalOpen} onClose={closeModal}>
-          <p>This is the modal content!</p>
-        </Modal>
+        <Button onClick={onOpen}>Start a Party</Button>
+
+        {partyState && (
+          <Modal isOpen={partyState && isOpen} onClose={onClose}>
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>Paste Your Party Code</ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <Stack spacing={5} direction="column">
+                  <CodeMirror
+                    value={nadalang}
+                    height="200px"
+                    extensions={[python()]}
+                    onChange={onNadalangChange}
+                  // theme={TODO}
+                  />
+
+                  <Heading as="h4" size="md">Select Your Party People</Heading>
+                  {Object.keys(partyState).filter((p) => p !== "config").map((
+                    p,
+                  ) => (
+                    <Checkbox data-peers={p}>
+                      {p}
+                    </Checkbox>
+                  ))}
+                </Stack>
+              </ModalBody>
+
+              <ModalFooter>
+                <Button colorScheme="blue" mr={3} onClick={onClose}>
+                  Party On!
+                </Button>
+                <Button onClick={onClose} variant="ghost">Abort</Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+        )}
       </div>
     </>
   );

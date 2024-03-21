@@ -33,13 +33,6 @@
   "packageManager": "yarn@3.2.3",
   "devDependencies": {
     "husky": "^8.0.1",
-    "lint-staged": "^13.0.3",
-    "partykit": "0.0.100"
-  },
-  "dependencies": {
-    "@nillion/nillion-client-js-browser": "/home/bionik/Desktop/nillion/sdk/npm",
-    "partysocket": "1.0.1",
-    "unique-names-generator": "^4.7.1",
-    "web3": "^4.6.0"
+    "lint-staged": "^13.0.3"
   }
 }
