@@ -9,6 +9,11 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+  Box,
   Button,
   Checkbox,
   Heading,
@@ -51,26 +56,37 @@ const Home: NextPage = () => {
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeSubmitted, setCodeSubmitted] = useState<boolean | null>(null);
   const [selectedPeers, setSelectedPeers] = useState({});
 
   const [nadalang, setNadalang] = useState(`
-party1 = Party(name="Party1")
-party2 = Party(name="Party2")
-my_int1 = SecretInteger(Input(name="my_int1", party=party1))
-my_int2 = SecretInteger(Input(name="my_int2", party=party2))
-
-x = my_int1 * my_int2 output = x.reveal() * Integer(3)
-
-return [Output(output, "my_output", party1)] `);
+from nada_dsl import *
+def nada_main():
+    party1 = Party(name="Party1")
+    party2 = Party(name="Party2")
+    my_int1 = SecretInteger(Input(name="my_int1", party=party1))
+    my_int2 = SecretInteger(Input(name="my_int2", party=party2))
+    x = my_int1 * my_int2
+    output = x.reveal() * Integer(3)
+    return [Output(output, "my_output", party1)]
+`);
 
   const [client, setClient] = useState(null);
   const [nillion, setNillion] = useState(null);
 
+  const closeCodeModal = () => {
+    setCodeError(null);
+    setCodeSubmitted(null);
+    onClose();
+  };
   const onNadalangChange = useCallback((val, viewUpdate) => {
     setNadalang(val);
   }, []);
 
   const onStartParty = async () => {
+    setCodeSubmitted(null);
+    setCodeError(null);
     const partyPeople = Object.keys(selectedPeers).filter((p) =>
       selectedPeers[p]
     );
@@ -80,25 +96,36 @@ return [Output(output, "my_output", party1)] `);
 
     // await
     // https://ofnzkxpntb.execute-api.eu-west-1.amazonaws.com/testnet-fe/upload-nada-source
-    const url = `${backend}/upload-nada-source`;
-    // nadalang
+    const url = `${backend}/upload-nada-source/${codeName}-program`;
+
+    // encode nadalang source code so that I don't have serialization issues
+    let buffer = new TextEncoder().encode(nadalang);
+    let base64EncodedString = btoa(String.fromCharCode.apply(null, buffer));
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Type": "application/json; charset=utf-8",
         },
-        body: nadalang,
+        body: JSON.stringify({ nadalang: base64EncodedString }),
       });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.status === 200) {
+        setCodeError(`server error`);
+        setCodeSubmitted(null);
+        return;
       }
-      const program = await response.json();
-      console.log(`got program response: ${program}`);
+      const result = await response.json();
+      console.log(`got program response: ${JSON.stringify(result, null, 4)}`);
+      if (result?.statusCode !== 200) {
+        setCodeError(result?.error);
+        setCodeSubmitted(null);
+        return;
+      }
       dispatch({
         type: "party",
-        payload: { peers: partyPeople, programid: program },
+        payload: { peers: partyPeople, programid: result.programid },
       });
+      closeCodeModal();
     } catch (error) {
       console.error("Error posting program: ", error);
     }
@@ -125,11 +152,26 @@ return [Output(output, "my_output", party1)] `);
     console.log(partyState.config.payments_config.rpc_endpoint);
     const web3 = new Web3(partyState.config.payments_config.rpc_endpoint);
     const account = web3.eth.accounts.create();
-    // privateKey, address
-    console.log(`TODO: posting [${account.address}] to faucet webservice`);
-    console.log(`TODO: using [${account.privateKey}] in nillion client`);
 
     (async () => {
+      console.log(`posting dynamic wallet [${account.address}] to faucet webservice`);
+      const url = `${backend}/faucet/${account.address}`;
+      const response = await fetch(url, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log(`got faucet response: ${JSON.stringify(result, null, 4)}`);
+      if (result?.statusCode !== 200) {
+        setCodeError(result?.error);
+        setCodeSubmitted(null);
+        return;
+      }
+
+      console.log(`using dynamic wallet in nillion client`);
+
       const _nillion = await import("@nillion/nillion-client-js-browser");
       await _nillion.default();
 
@@ -214,7 +256,7 @@ return [Output(output, "my_output", party1)] `);
             <Button onClick={onOpen}>Start a Party</Button>
 
             {partyState && (
-              <Modal isOpen={partyState && isOpen} onClose={onClose}>
+              <Modal isOpen={partyState && isOpen} onClose={closeCodeModal}>
                 <ModalOverlay />
                 <ModalContent>
                   <ModalHeader>Let's Start a Code Party!</ModalHeader>
@@ -236,6 +278,19 @@ return [Output(output, "my_output", party1)] `);
                         onChange={onNadalangChange}
                       // theme={TODO}
                       />
+                      {codeError && (
+                        <Alert status="error">
+                          <AlertIcon />
+                          <Box>
+                            <AlertTitle mt={4} mb={1} fontSize="lg">
+                              There was an error compiling your program
+                            </AlertTitle>
+                            <AlertDescription maxWidth="sm">
+                              {codeError}
+                            </AlertDescription>
+                          </Box>
+                        </Alert>
+                      )}
 
                       <Heading as="h4" size="sm">
                         Select Your Party Peers
@@ -252,13 +307,20 @@ return [Output(output, "my_output", party1)] `);
                             onChange={handleCheckboxChange}
                           >
                             {p}
+                            {p === codeName ? " (you)" : ""}
                           </Checkbox>
                         ))}
                     </Stack>
                   </ModalBody>
 
                   <ModalFooter>
-                    <Button colorScheme="blue" mr={3} onClick={onStartParty}>
+                    <Button
+                      colorScheme="blue"
+                      mr={3}
+                      isLoading={codeSubmitted}
+                      loadingText="Distributing"
+                      onClick={onStartParty}
+                    >
                       Party On!
                     </Button>
                     <Button onClick={onClose} variant="ghost">Abort</Button>
