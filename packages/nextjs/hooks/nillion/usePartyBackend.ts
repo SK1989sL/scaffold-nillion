@@ -1,21 +1,12 @@
 import { useState } from "react";
 import usePartySocket from "partysocket/react";
 
+import type * as Nillion from "~~/types/nillion";
+
 const PARTY_TRACKER = "apollo.wehrenterprises.org:1999";
 
-type BookEntry = {
-  handle: string;
-  peerid: string;
-};
-type PhoneBook = { [key: string]: BookEntry };
-
-type RegistrationTicket = { handle: string; peerid: string };
-type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
-type RegisterAction = { type: "register"; user: RegistrationTicket };
-type Action = DefaultAction | RegisterAction;
-
 export const usePartyBackend = () => {
-  const [partyState, setPartyState] = useState<PhoneBook | null>(null);
+  const [partyState, setPartyState] = useState<Nillion.PhoneBook | null>(null);
 
   const ws = usePartySocket({
     // usePartySocket takes the same arguments as PartySocket.
@@ -40,7 +31,7 @@ export const usePartyBackend = () => {
     },
   });
 
-  const dispatch = (action: Action) => {
+  const dispatch = (action: Nillion.Action) => {
     console.log(`sending message to party people`);
     ws.send(JSON.stringify(action));
   };

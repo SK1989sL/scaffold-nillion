@@ -1,32 +1,10 @@
 import type * as Party from "partykit/server";
+import type * as Nillion from "./nillion";
 
-type NillionConfig = {
-  cluster_id: string;
-  bootnodes: string[];
-  payments_config: {
-    rpc_endpoint: string;
-    signer: {
-      wallet: {
-        "chain_id": number;
-      };
-    };
-    smart_contract_addresses: {
-      "blinding_factors_manager": string;
-      "payments": string;
-    };
-  };
-};
-
-type BookEntry = {
-  handle: string;
-  peerid: string;
-};
-
-type PhoneBook = { [key: string]: NillionConfig | BookEntry };
 
 export default class Server implements Party.Server {
 
-  config: NillionConfig = {
+  config: Nillion.Config = {
     cluster_id: "f592f8ea-7651-4ab8-b692-ef149b783dc9",
     bootnodes: [
       "/dns/node-1.testnet-fe.nillion-network.nilogy.xyz/tcp/14211/wss/p2p/12D3KooWNbB2dobuVpH5qetmWnamsKr1G9rC5Sbvj2UsMt3jvQxK",
@@ -43,7 +21,7 @@ export default class Server implements Party.Server {
     },
   };
 
-  phonebook: PhoneBook = { config: this.config };
+  phonebook: Nillion.PhoneBook = { config: this.config };
 
   constructor(readonly room: Party.Room) {}
 
@@ -62,11 +40,16 @@ export default class Server implements Party.Server {
   onMessage(message: string, sender: Party.Connection) {
     // let's log the message
     console.log(`connection ${sender.id} sent message: ${message}`);
-    let payload = JSON.parse(message);
+    let envelope: Nillion.Envelope = JSON.parse(message);
     // we could use a more sophisticated protocol here, such as JSON
     // in the message data, but for simplicity we just use a string
-    if (payload?.type === "register") {
-      this.register(payload.user);
+    switch (envelope?.type) {
+      case "register":
+        this.register(envelope.payload);
+        break;
+      case "codeparty":
+        this.codeparty(envelope.payload);
+        break;
     }
   }
 
@@ -77,10 +60,15 @@ export default class Server implements Party.Server {
     return new Response(JSON.stringify(this.phonebook));
   }
 
-  register(payload: BookEntry) {
+  register(payload: Nillion.BookEntry) {
     this.phonebook[payload["handle"]] = payload;
     this.room.broadcast(JSON.stringify(this.phonebook), []);
   }
+
+  codeparty(payload: Nillion.CodePartyStart) {
+    this.room.broadcast(JSON.stringify(party), []);
+  }
+
 }
 
 Server satisfies Party.Worker;
