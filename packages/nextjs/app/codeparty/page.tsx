@@ -11,18 +11,16 @@ import { python } from "@codemirror/lang-python";
 import {
   Button,
   Checkbox,
-  CheckboxGroup,
   Heading,
+  Link as ChakraLink,
   Modal,
   ModalBody,
-  ModalCloseButton,
   ModalContent,
   ModalFooter,
   ModalHeader,
   ModalOverlay,
   Stack,
   Text,
-  Textarea,
   useDisclosure,
 } from "@chakra-ui/react";
 import {
@@ -43,6 +41,8 @@ import { Address } from "~~/components/scaffold-eth";
 import { usePartyBackend } from "~~/hooks/nillion";
 import { shortenKeyHelper } from "~~/utils/scaffold-eth";
 
+const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
+
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
   const { partyState, dispatch } = usePartyBackend();
@@ -51,6 +51,8 @@ const Home: NextPage = () => {
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
+  const [selectedPeers, setSelectedPeers] = useState({});
+
   const [nadalang, setNadalang] = useState(`
 party1 = Party(name="Party1")
 party2 = Party(name="Party2")
@@ -63,12 +65,52 @@ return [Output(output, "my_output", party1)] `);
 
   const [client, setClient] = useState(null);
   const [nillion, setNillion] = useState(null);
-  const [url, setUrl] = useState<string>();
 
   const onNadalangChange = useCallback((val, viewUpdate) => {
-    console.log("val:", val);
     setNadalang(val);
   }, []);
+
+  const onStartParty = async () => {
+    const partyPeople = Object.keys(selectedPeers).filter((p) =>
+      selectedPeers[p]
+    );
+    console.log(
+      `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
+    );
+
+    // await
+    // https://ofnzkxpntb.execute-api.eu-west-1.amazonaws.com/testnet-fe/upload-nada-source
+    const url = `${backend}/upload-nada-source`;
+    // nadalang
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+        body: nadalang,
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const program = await response.json();
+      console.log(`got program response: ${program}`);
+      dispatch({
+        type: "party",
+        payload: { peers: partyPeople, programid: program },
+      });
+    } catch (error) {
+      console.error("Error posting program: ", error);
+    }
+  };
+
+  const handleCheckboxChange = (event) => {
+    const { name, checked } = event.target;
+    setSelectedPeers((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
+  };
 
   useEffect(() => {
     if (!userKey) return;
@@ -168,6 +210,63 @@ return [Output(output, "my_output", party1)] `);
             )}
           </h1>
 
+          <div>
+            <Button onClick={onOpen}>Start a Party</Button>
+
+            {partyState && (
+              <Modal isOpen={partyState && isOpen} onClose={onClose}>
+                <ModalOverlay />
+                <ModalContent>
+                  <ModalHeader>Let's Start a Code Party!</ModalHeader>
+                  <ModalBody>
+                    <Heading as="h4" size="sm">Paste Your Party Code</Heading>
+                    <Text as="sub" align="left">
+                      <ChakraLink
+                        href="https://docs.nillion.com/nada-lang-framework"
+                        isExternal
+                      >
+                        [docs]
+                      </ChakraLink>
+                    </Text>
+                    <Stack spacing={5} direction="column">
+                      <CodeMirror
+                        value={nadalang}
+                        height="200px"
+                        extensions={[python()]}
+                        onChange={onNadalangChange}
+                      // theme={TODO}
+                      />
+
+                      <Heading as="h4" size="sm">
+                        Select Your Party Peers
+                      </Heading>
+                      {Object.keys(partyState).filter((p) =>
+                        p !== "config"
+                      )
+                        .map((
+                          p,
+                        ) => (
+                          <Checkbox
+                            key={`checkbox-${p}`}
+                            name={p}
+                            onChange={handleCheckboxChange}
+                          >
+                            {p}
+                          </Checkbox>
+                        ))}
+                    </Stack>
+                  </ModalBody>
+
+                  <ModalFooter>
+                    <Button colorScheme="blue" mr={3} onClick={onStartParty}>
+                      Party On!
+                    </Button>
+                    <Button onClick={onClose} variant="ghost">Abort</Button>
+                  </ModalFooter>
+                </ModalContent>
+              </Modal>
+            )}
+          </div>
           {connectedToSnap && (
             <div>
               <div className="flex justify-center items-center space-x-2">
@@ -249,46 +348,6 @@ return [Output(output, "my_output", party1)] `);
               )}
           </div>
         </div>
-      </div>
-      <div>
-        <Button onClick={onOpen}>Start a Party</Button>
-
-        {partyState && (
-          <Modal isOpen={partyState && isOpen} onClose={onClose}>
-            <ModalOverlay />
-            <ModalContent>
-              <ModalHeader>Paste Your Party Code</ModalHeader>
-              <ModalCloseButton />
-              <ModalBody>
-                <Stack spacing={5} direction="column">
-                  <CodeMirror
-                    value={nadalang}
-                    height="200px"
-                    extensions={[python()]}
-                    onChange={onNadalangChange}
-                  // theme={TODO}
-                  />
-
-                  <Heading as="h4" size="md">Select Your Party People</Heading>
-                  {Object.keys(partyState).filter((p) => p !== "config").map((
-                    p,
-                  ) => (
-                    <Checkbox data-peers={p}>
-                      {p}
-                    </Checkbox>
-                  ))}
-                </Stack>
-              </ModalBody>
-
-              <ModalFooter>
-                <Button colorScheme="blue" mr={3} onClick={onClose}>
-                  Party On!
-                </Button>
-                <Button onClick={onClose} variant="ghost">Abort</Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
-        )}
       </div>
     </>
   );

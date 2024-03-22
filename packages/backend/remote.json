@@ -1,0 +1,39 @@
+{
+  "payments_config": {
+    "rpc_endpoint": "https://rpc-endpoint.testnet-fe.nilogy.xyz",
+    "signer": {
+      "wallet": {
+        "chain_id": 22255222
+      }
+    },
+    "smart_contract_addresses": {
+      "blinding_factors_manager": "0xf66cb23aa5857ae1d34a23ce385fa78495c50c69",
+      "payments": "0xc166ce8bfc56e4493ffd43a99db234a9f0413443"
+    }
+  },
+  "bootnodes_ws": [
+    "/dns/node-1.testnet-fe.nillion-network.nilogy.xyz/tcp/14211/wss/p2p/12D3KooWNbB2dobuVpH5qetmWnamsKr1G9rC5Sbvj2UsMt3jvQxK",
+    "/dns/node-2.testnet-fe.nillion-network.nilogy.xyz/tcp/14211/wss/p2p/12D3KooWHuSKUJyDZsZf1WVLbjstej6yrcj1Wm1SspvFTKYiLY4J"
+  ],
+  "bootnodes": [
+    "/dns/node-1.testnet-fe.nillion-network.nilogy.xyz/tcp/14111/p2p/12D3KooWNbB2dobuVpH5qetmWnamsKr1G9rC5Sbvj2UsMt3jvQxK",
+    "/dns/node-2.testnet-fe.nillion-network.nilogy.xyz/tcp/14111/p2p/12D3KooWHuSKUJyDZsZf1WVLbjstej6yrcj1Wm1SspvFTKYiLY4J"
+  ],
+  "cluster_id": "f592f8ea-7651-4ab8-b692-ef149b783dc9",
+  "keypath": {
+    "node": "/home/bionik/nillion-node.key",
+    "wuser": "/home/bionik/nillion-user-key",
+    "ruser": "/home/bionik/nillion-user-key-2"
+  },
+  "programs": {
+    "simple_subtraction_public_variables": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_subtraction_public_variables",
+    "simple_literals": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_literals",
+    "simple_public_variables_only": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_public_variables_only",
+    "simple_sub": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_sub",
+    "basic": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/basic",
+    "test_skillful": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/test_skillful",
+    "simple_public_variables": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_public_variables",
+    "simple_mult": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple_mult",
+    "simple": "HHMgS4vggxGfwULk6CNFL6FCzZ8Xu47fkyyDCyAhV1KpLcXXZ1bvx8FQv2RX48y7SFvnfzN89v93ToH4DJ7Lkvs/simple"
+  }
+}
