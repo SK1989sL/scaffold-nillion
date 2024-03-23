@@ -1,5 +1,5 @@
 import type * as Party from "partykit/server";
-import type * as Nillion from "./nillion";
+import type * as Nillion from "../types/nillion";
 
 
 export default class Server implements Party.Server {
@@ -66,7 +66,7 @@ export default class Server implements Party.Server {
   }
 
   codeparty(payload: Nillion.CodePartyStart) {
-    this.room.broadcast(JSON.stringify(party), []);
+    this.room.broadcast(JSON.stringify(payload), []);
   }
 
 }

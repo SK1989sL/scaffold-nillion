@@ -50,7 +50,7 @@ const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
-  const { partyState, dispatch } = usePartyBackend();
+  const { partyState, partyQueue, dispatch } = usePartyBackend();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
@@ -85,7 +85,7 @@ def nada_main():
   }, []);
 
   const onStartParty = async () => {
-    setCodeSubmitted(null);
+    setCodeSubmitted(true);
     setCodeError(null);
     const partyPeople = Object.keys(selectedPeers).filter((p) =>
       selectedPeers[p]
@@ -140,6 +140,14 @@ def nada_main():
   };
 
   useEffect(() => {
+    if (partyQueue === undefined) return;
+    for (let codeparty in partyQueue) {
+      if (codeName in codeparty.peers) {
+        console.log(`you're a selected party member!`);
+      }
+    }
+  }, [partyQueue, codeName]);
+  useEffect(() => {
     if (!userKey) return;
     const myName = uniqueNamesGenerator({
       dictionaries: [adjectives, colors, animals],
@@ -154,7 +162,9 @@ def nada_main():
     const account = web3.eth.accounts.create();
 
     (async () => {
-      console.log(`posting dynamic wallet [${account.address}] to faucet webservice`);
+      console.log(
+        `posting dynamic wallet [${account.address}] to faucet webservice`,
+      );
       const url = `${backend}/faucet/${account.address}`;
       const response = await fetch(url, {
         method: "POST",
@@ -191,7 +201,10 @@ def nada_main():
       setClient(_client);
       setNillion(_nillion);
 
-      dispatch({ type: "register", user: { handle: myName, peerid: userKey } });
+      dispatch({
+        type: "register",
+        payload: { handle: myName, peerid: userKey },
+      });
     })();
   }, [userKey]);
 

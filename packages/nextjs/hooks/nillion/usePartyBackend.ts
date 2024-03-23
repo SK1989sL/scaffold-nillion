@@ -7,6 +7,7 @@ const PARTY_TRACKER = "apollo.wehrenterprises.org:1999";
 
 export const usePartyBackend = () => {
   const [partyState, setPartyState] = useState<Nillion.PhoneBook | null>(null);
+  const [partyQueue, setPartyQueue] = useState<Nillion.PartyQueue | null>(null);
 
   const ws = usePartySocket({
     // usePartySocket takes the same arguments as PartySocket.
@@ -19,9 +20,17 @@ export const usePartyBackend = () => {
       console.log("connected");
     },
     onMessage(e) {
-      setPartyState(JSON.parse(e.data));
       console.log("message", e.data);
+      let envelope: Nillion.Envelope = JSON.parse(e.data);
+      switch (envelope?.type) {
+        case "codeparty":
+          setPartyQueue([...partyQueue, envelope.payload]);
+          break;
+        default:
+          setPartyState(envelope);
+      }
     },
+
     onClose() {
       console.log("closed");
     },
@@ -37,6 +46,7 @@ export const usePartyBackend = () => {
   };
   return {
     partyState,
+    partyQueue,
     dispatch,
   };
 };
