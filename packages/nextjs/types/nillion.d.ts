@@ -21,16 +21,21 @@ export type BookEntry = {
   peerid: string;
 };
 
-export type PhoneBook = { [key: string]: NillionConfig | BookEntry };
+export type PhoneBook = { [key: string]: BookEntry };
+
+export type Baseline = {
+  config: Config;
+  peers: PhoneBook;
+};
 
 export type CodePartyStart = {
 	peers: string[];
 	programid: string;
 };
 
-export type Envelope {
+export type Envelope = {
 	type: string;
-	payload: BookEntry | CodePartyStart
+	payload: Baseline | BookEntry | CodePartyStart;
 };
 
 export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };

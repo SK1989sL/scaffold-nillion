@@ -1,9 +1,7 @@
 import type * as Party from "partykit/server";
 import type * as Nillion from "../types/nillion";
 
-
 export default class Server implements Party.Server {
-
   config: Nillion.Config = {
     cluster_id: "f592f8ea-7651-4ab8-b692-ef149b783dc9",
     bootnodes: [
@@ -21,7 +19,7 @@ export default class Server implements Party.Server {
     },
   };
 
-  phonebook: Nillion.PhoneBook = { config: this.config };
+  phonebook: Nillion.PhoneBook = {};
 
   constructor(readonly room: Party.Room) {}
 
@@ -34,7 +32,18 @@ export default class Server implements Party.Server {
   url: ${new URL(ctx.request.url).pathname}`,
     );
 
-    conn.send(JSON.stringify(this.phonebook));
+    conn.send(JSON.stringify(this.baseline));
+  }
+
+  baseline() {
+    const baseline: Nillion.Envelope = {
+      type: "baseline",
+      payload: {
+        config: this.config,
+        peers: this.phonebook,
+      },
+    };
+    return baseline;
   }
 
   onMessage(message: string, sender: Party.Connection) {
@@ -56,19 +65,23 @@ export default class Server implements Party.Server {
   onRequest(req: Party.Request) {
     // response to any HTTP request (any method, any path) with the current
     // phonebook. This allows us to use SSR to give components an initial value
+    console.log(req);
 
-    return new Response(JSON.stringify(this.phonebook));
+    return new Response(JSON.stringify(this.baseline));
   }
 
   register(payload: Nillion.BookEntry) {
     this.phonebook[payload["handle"]] = payload;
-    this.room.broadcast(JSON.stringify(this.phonebook), []);
+    this.room.broadcast(JSON.stringify(this.baseline), []);
   }
 
   codeparty(payload: Nillion.CodePartyStart) {
-    this.room.broadcast(JSON.stringify(payload), []);
+    const codeparty: Nillion.Envelope = {
+      type: "codeparty",
+      payload,
+    };
+    this.room.broadcast(JSON.stringify(codeparty), []);
   }
-
 }
 
 Server satisfies Party.Worker;
