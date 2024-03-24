@@ -35,15 +35,12 @@ export default class Server implements Party.Server {
     conn.send(JSON.stringify(this.baseline));
   }
 
-  baseline() {
-    const baseline: Nillion.Envelope = {
+  baseline: Nillion.Envelope = {
       type: "baseline",
       payload: {
         config: this.config,
         peers: this.phonebook,
-      },
-    };
-    return baseline;
+      }
   }
 
   onMessage(message: string, sender: Party.Connection) {
