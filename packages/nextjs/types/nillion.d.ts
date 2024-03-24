@@ -19,9 +19,23 @@ export type Config = {
 export type BookEntry = {
   handle: string;
   peerid: string;
+  codepartyid: string;
 };
 
 export type PhoneBook = { [key: string]: BookEntry };
+
+export type CodePartyBinding = {
+  codepartyid: string;
+  peerid: string;
+  programid: string;
+  partyname: string | null;
+  inputname: string | null;
+  inputtype: string | null;
+}
+
+export type CodePartyBindings = {
+  [key: string]: CodePartyBinding;
+}
 
 export type CodePartyQueue = CodePartyStart;
 

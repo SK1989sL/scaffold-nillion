@@ -6,17 +6,31 @@ import Link from "next/link";
 import type { NextPage } from "next";
 import CopyToClipboard from "react-copy-to-clipboard";
 import CodeMirror from "@uiw/react-codemirror";
+import { monokai } from "@uiw/codemirror-theme-monokai";
+
 import { python } from "@codemirror/lang-python";
 
 import {
+  Accordion,
+  AccordionButton,
+  AccordionIcon,
+  AccordionItem,
+  AccordionPanel,
   Alert,
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  Avatar,
+  Badge,
   Box,
   Button,
+  Card,
+  CardBody,
+  CardFooter,
+  CardHeader,
   Center,
   Checkbox,
+  Flex,
   Heading,
   Input,
   InputGroup,
@@ -30,9 +44,20 @@ import {
   ModalOverlay,
   NumberInput,
   NumberInputField,
+  SimpleGrid,
   Stack,
+  Step,
+  StepDescription,
+  StepIcon,
+  StepIndicator,
+  StepNumber,
+  Stepper,
+  StepSeparator,
+  StepStatus,
+  StepTitle,
   Text,
   useDisclosure,
+  useSteps,
 } from "@chakra-ui/react";
 import {
   adjectives,
@@ -47,6 +72,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { Web3 } from "web3";
 
+import type * as NillionType from "~~/types/nillion";
 import { Address } from "~~/components/scaffold-eth";
 import { usePartyBackend } from "~~/hooks/nillion";
 import { shortenKeyHelper } from "~~/utils/scaffold-eth";
@@ -59,16 +85,130 @@ const Home: NextPage = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: formIsOpen, onOpen: formOnOpen, onClose: formOnClose } =
     useDisclosure();
+  const {
+    isOpen: bindingsSelectIsOpen,
+    onOpen: bindingsSelectOnOpen,
+    onClose: bindingsSelectOnClose,
+  } = useDisclosure();
+  const [programId, setProgramId] = useState<string | null>(null);
+  const [codePartyBindings, setCodePartyBindings] = useState<
+    NillionType.CodePartyBindings
+  >([]);
+
+  const onStartParty = async () => {
+    try {
+      const partyPeople = Object.keys(selectedPeers).filter((p) =>
+        selectedPeers[p]
+      );
+      console.log(
+        `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
+      );
+
+      dispatch({
+        type: "codeparty",
+        payload: { peers: partyPeople, programid: result.programid },
+      });
+      closeCodeModal();
+    } catch (error) {
+      console.error("Error posting program: ", error);
+      setCodeError(`server error`);
+      setPartyButtonBusy(undefined);
+      return;
+    }
+  };
+
+  const onAssignPeerBindings = async () => {
+    try {
+      const partyPeople = Object.keys(selectedPeers).filter((p) =>
+        selectedPeers[p]
+      );
+
+      const bindingInit = partyPeople.reduce((acc, p) => {
+        acc[p] = {
+          peerid: partyState.peers[p].peerid,
+          codepartyid: partyState.peers[p].codepartyid,
+          programid: programId,
+          partyname: null,
+          inputname: null,
+          inputtype: null,
+        };
+        return acc;
+      }, {});
+
+      setCodePartyBindings(bindingInit);
+      setActiveStep(2);
+      console.log(
+        `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
+      );
+    } catch (error) {
+      console.error("Error posting program: ", error);
+      setCodeError(`server error`);
+      setPartyButtonBusy(undefined);
+      return;
+    }
+  };
+
+  const onSubmitCode = async () => {
+    setCodeError(null);
+    setPartyButtonBusy(true);
+
+    const url = `${backend}/upload-nada-source/${codeName}-program`;
+
+    // encode nadalang source code so that I don't have serialization issues
+    let buffer = new TextEncoder().encode(nadalang);
+    let base64EncodedString = btoa(String.fromCharCode.apply(null, buffer));
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        body: JSON.stringify({ nadalang: base64EncodedString }),
+      });
+      if (!(response.status === 200)) {
+        setCodeError(`server error`);
+        return;
+      }
+      const result = await response.json();
+      console.log(`got program response: ${JSON.stringify(result, null, 4)}`);
+      if (result?.statusCode !== 200) {
+        setCodeError(result?.error);
+        return;
+      }
+      setActiveStep(1);
+      setProgramId(result.programid);
+    } catch (error) {
+      console.error("Error posting program: ", error);
+      setCodeError(`server error`);
+      return;
+    } finally {
+      setPartyButtonBusy(undefined);
+    }
+  };
+
+  const steps = [
+    { title: "First", description: "Upload Program", onClick: onSubmitCode },
+    {
+      title: "Second",
+      description: "Select Peers",
+      onClick: onAssignPeerBindings,
+    },
+    { title: "Third", description: "Assign Bindings", onClick: onStartParty },
+  ];
+  const { activeStep, setActiveStep } = useSteps({
+    index: 0,
+    count: steps.length,
+  });
 
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
-  const [codeSubmitted, setCodeSubmitted] = useState<boolean | undefined>(
+
+  const [partyButtonBusy, setPartyButtonBusy] = useState<boolean | undefined>(
     undefined,
   );
   const [selectedPeers, setSelectedPeers] = useState({});
-  const [showPartyForm, setShowPartyForm] = useState<boolean>(false);
 
   const [nadalang, setNadalang] = useState<string>(`
 from nada_dsl import *
@@ -91,7 +231,7 @@ def nada_main():
 
   const closeCodeModal = () => {
     setCodeError(null);
-    setCodeSubmitted(null);
+    setPartyButtonBusy(null);
     onClose();
   };
   const onNadalangChange = useCallback((val) => {
@@ -118,54 +258,6 @@ def nada_main():
       my_secrets,
       binding,
     );
-  };
-
-  const onStartParty = async () => {
-    setCodeSubmitted(true);
-    setCodeError(null);
-    const partyPeople = Object.keys(selectedPeers).filter((p) =>
-      selectedPeers[p]
-    );
-    console.log(
-      `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
-    );
-
-    const url = `${backend}/upload-nada-source/${codeName}-program`;
-
-    // encode nadalang source code so that I don't have serialization issues
-    let buffer = new TextEncoder().encode(nadalang);
-    let base64EncodedString = btoa(String.fromCharCode.apply(null, buffer));
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify({ nadalang: base64EncodedString }),
-      });
-      if (!(response.status === 200)) {
-        setCodeError(`server error`);
-        setCodeSubmitted(undefined);
-        return;
-      }
-      const result = await response.json();
-      console.log(`got program response: ${JSON.stringify(result, null, 4)}`);
-      if (result?.statusCode !== 200) {
-        setCodeError(result?.error);
-        setCodeSubmitted(undefined);
-        return;
-      }
-      dispatch({
-        type: "codeparty",
-        payload: { peers: partyPeople, programid: result.programid },
-      });
-      closeCodeModal();
-    } catch (error) {
-      console.error("Error posting program: ", error);
-      setCodeError(`server error`);
-      setCodeSubmitted(undefined);
-      return;
-    }
   };
 
   const handleCheckboxChange = (event) => {
@@ -213,7 +305,7 @@ def nada_main():
       console.log(`got faucet response: ${JSON.stringify(result, null, 4)}`);
       if (result?.statusCode !== 200) {
         setCodeError(result?.error);
-        setCodeSubmitted(null);
+        setPartyButtonBusy(null);
         return;
       }
 
@@ -280,6 +372,50 @@ def nada_main():
     }
   }
 
+  console.log(`activeStep: ${activeStep}`);
+  console.log(`party bindings: `);
+  console.log(JSON.stringify(codePartyBindings, null, 4));
+  const PeerButton = (props) => {
+    return (
+      <Card maxW="lg">
+        <CardHeader>
+          <Flex spacing="4">
+            <Flex flex="1" gap="4" alignItems="center" flexWrap="wrap">
+              <Avatar name={props.peer} />
+              <Box>
+                <Heading size="sm">{props.peer}</Heading>
+              </Box>
+            </Flex>
+          </Flex>
+        </CardHeader>
+        <CardBody>
+          <Stack spacing={2} direction="column">
+            <InputGroup>
+              <InputLeftAddon>
+                Program party name
+              </InputLeftAddon>
+              <Input placeholder={`Party${props.idx + 1}`} />
+            </InputGroup>
+            <InputGroup>
+              <InputLeftAddon>
+                Program input name
+              </InputLeftAddon>
+              <Input placeholder={`my_int${props.idx + 1}`} />
+            </InputGroup>
+          </Stack>
+        </CardBody>
+        <CardFooter>
+          <Button
+            colorScheme="blue"
+            mr={3}
+          >
+            Confirm
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
+
   return (
     <>
       <div className="flex items-center flex-col flex-grow pt-10">
@@ -310,27 +446,63 @@ def nada_main():
             )}
 
             {partyState && (
-              <Modal size={'full'} isOpen={partyState && isOpen} onClose={closeCodeModal}>
+              <Modal
+                size={"full"}
+                isOpen={partyState && isOpen}
+                onClose={closeCodeModal}
+              >
                 <ModalOverlay />
                 <ModalContent>
-                  <ModalHeader>Let's Start a Code Party!</ModalHeader>
+                  <ModalHeader>
+                    <Stepper size="lg" index={activeStep}>
+                      {steps.map((step, index) => (
+                        <Step
+                          key={index}
+                        >
+                          <StepIndicator>
+                            <StepStatus
+                              complete={<StepIcon />}
+                              incomplete={<StepNumber />}
+                              active={<StepNumber />}
+                            />
+                          </StepIndicator>
+
+                          <Box flexShrink="0">
+                            <StepTitle>{step.title}</StepTitle>
+                            <StepDescription>
+                              {step.description}
+                            </StepDescription>
+                          </Box>
+
+                          <StepSeparator />
+                        </Step>
+                      ))}
+                    </Stepper>
+                  </ModalHeader>
                   <ModalBody>
                     <Heading as="h4" size="sm">Paste Your Party Code</Heading>
-                    <Text as="sub" align="left">
+                    <Badge variant="subtle" colorScheme="blue">
                       <ChakraLink
                         href="https://docs.nillion.com/nada-lang-framework"
                         isExternal
                       >
                         [docs]
                       </ChakraLink>
-                    </Text>
+                    </Badge>
                     <Stack spacing={5} direction="column">
+                      {(partyButtonBusy || activeStep !== 1) && (
+                        <Alert status="warning">
+                          <AlertIcon />
+                          Editor Locked
+                        </Alert>
+                      )}
                       <CodeMirror
                         value={nadalang}
                         height="300px"
                         extensions={[python()]}
+                        readOnly={partyButtonBusy || activeStep !== 1}
                         onChange={onNadalangChange}
-                      // theme={TODO}
+                        theme={monokai}
                       />
                       {codeError && (
                         <Alert status="error">
@@ -346,35 +518,66 @@ def nada_main():
                         </Alert>
                       )}
 
-                      <Heading as="h4" size="sm">
-                        Select Your Party Peers
-                      </Heading>
-                      {Object.keys(partyState?.peers).map((
-                        p, idx
-                      ) => (
-                        <Stack spacing={2} direction="column">
-                          <Checkbox
-                            key={`checkbox-${p}`}
-                            name={p}
-                            onChange={handleCheckboxChange}
-                          >
-                            {p}
-                            {p === codeName ? " (you)" : ""}
-                          </Checkbox>
-                          <InputGroup size="xs">
-                            <InputLeftAddon>
-                              as
-                            </InputLeftAddon>
-                            <Input placeholder={`Party${idx+1}`} size="xs" />
-                          </InputGroup>
-                          <InputGroup size="xs">
-                            <InputLeftAddon>
-                              secret
-                            </InputLeftAddon>
-                            <Input placeholder={`my_int${idx+1}`} size="xs" />
-                          </InputGroup>
-                        </Stack>
-                      ))}
+                      <Accordion index={activeStep - 1}>
+                        <AccordionItem isDisabled={activeStep !== 1}>
+                          <h2>
+                            <AccordionButton>
+                              <Box as="span" flex="1" textAlign="left">
+                                Select Peers
+                              </Box>
+                            </AccordionButton>
+                          </h2>
+                          {activeStep === 1 && (
+                            <AccordionPanel pb={4}>
+                              {Object.keys(partyState?.peers).map((
+                                peer,
+                                idx,
+                              ) => (
+                                <Stack spacing={2} direction="column">
+                                  <Checkbox
+                                    key={`checkbox-${peer}`}
+                                    name={peer}
+                                    onChange={handleCheckboxChange}
+                                  >
+                                    {peer}
+                                    {peer === codeName ? " (you)" : ""}
+                                  </Checkbox>
+                                </Stack>
+                              ))}
+                            </AccordionPanel>
+                          )}
+                        </AccordionItem>
+
+                        <AccordionItem isDisabled={activeStep !== 2}>
+                          <h2>
+                            <AccordionButton>
+                              <Box as="span" flex="1" textAlign="left">
+                                Assign Bindings
+                              </Box>
+                            </AccordionButton>
+                          </h2>
+                          {activeStep === 2 && (
+                            <AccordionPanel pb={4}>
+                              <SimpleGrid
+                                spacing={4}
+                              >
+                                {Object.entries(codePartyBindings).map(
+                                  ([key, props], idx) => {
+                                    return (
+                                      <PeerButton
+                                        key={key}
+                                        peer={key}
+                                        idx={idx}
+                                        {...props}
+                                      />
+                                    );
+                                  },
+                                )}
+                              </SimpleGrid>
+                            </AccordionPanel>
+                          )}
+                        </AccordionItem>
+                      </Accordion>
                     </Stack>
                   </ModalBody>
 
@@ -382,11 +585,11 @@ def nada_main():
                     <Button
                       colorScheme="blue"
                       mr={3}
-                      isLoading={codeSubmitted}
-                      loadingText="Distributing"
-                      onClick={onStartParty}
+                      isLoading={partyButtonBusy}
+                      loadingText="Working..."
+                      onClick={steps[activeStep].onClick}
                     >
-                      Party On!
+                      {steps[activeStep].description} »
                     </Button>
                     <Button onClick={onClose} variant="ghost">Abort</Button>
                   </ModalFooter>
