@@ -44,6 +44,7 @@ import {
   ModalOverlay,
   NumberInput,
   NumberInputField,
+  Select,
   SimpleGrid,
   Stack,
   Step,
@@ -376,6 +377,27 @@ def nada_main():
   console.log(`party bindings: `);
   console.log(JSON.stringify(codePartyBindings, null, 4));
   const PeerButton = (props) => {
+    const extractedPartyNames = /(\w+)\s=\s*Party\(\s*name\s*=\s*"(\w+)"/gm;
+    const nadaextracts = {};
+    let match;
+    while ((match = extractedPartyNames.exec(nadalang)) !== null) {
+      nadaextracts[match[1]] = {
+        partyname: match[2],
+        inputs: [],
+      };
+    }
+
+    const extractedInputNames =
+      /(\w+)\(\s*Input\(\s*name\s*=\s*"(\w+)",\s*party=(\w+)/gm;
+    while ((match = extractedInputNames.exec(nadalang)) !== null) {
+      nadaextracts[match[3]].inputs.push(
+        { type: match[1], name: match[2] },
+      );
+    }
+
+  console.log(`nada extracts: `);
+  console.log(JSON.stringify(nadaextracts, null, 4));
+
     return (
       <Card maxW="lg">
         <CardHeader>
@@ -391,27 +413,14 @@ def nada_main():
         <CardBody>
           <Stack spacing={2} direction="column">
             <InputGroup>
-              <InputLeftAddon>
-                Program party name
-              </InputLeftAddon>
-              <Input placeholder={`Party${props.idx + 1}`} />
-            </InputGroup>
-            <InputGroup>
-              <InputLeftAddon>
-                Program input name
-              </InputLeftAddon>
-              <Input placeholder={`my_int${props.idx + 1}`} />
+              <Select placeholder="Select program party name">
+                {Object.keys(nadaextracts).map((option, index) => (
+                  <option key={index} value={option}>{nadaextracts[option].partyname}</option>
+                ))}
+              </Select>
             </InputGroup>
           </Stack>
         </CardBody>
-        <CardFooter>
-          <Button
-            colorScheme="blue"
-            mr={3}
-          >
-            Confirm
-          </Button>
-        </CardFooter>
       </Card>
     );
   };
@@ -490,7 +499,7 @@ def nada_main():
                       </ChakraLink>
                     </Badge>
                     <Stack spacing={5} direction="column">
-                      {(partyButtonBusy || activeStep !== 1) && (
+                      {(partyButtonBusy || activeStep !== 0) && (
                         <Alert status="warning">
                           <AlertIcon />
                           Editor Locked
@@ -500,7 +509,7 @@ def nada_main():
                         value={nadalang}
                         height="300px"
                         extensions={[python()]}
-                        readOnly={partyButtonBusy || activeStep !== 1}
+                        readOnly={partyButtonBusy || activeStep !== 0}
                         onChange={onNadalangChange}
                         theme={monokai}
                       />
