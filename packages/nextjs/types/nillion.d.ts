@@ -23,6 +23,8 @@ export type BookEntry = {
 
 export type PhoneBook = { [key: string]: BookEntry };
 
+export type CodePartyQueue = CodePartyStart;
+
 export type Baseline = {
   config: Config;
   peers: PhoneBook;
@@ -40,6 +42,6 @@ export type Envelope = {
 
 export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
 export type RegisterAction = { type: "register"; payload: BookEntry };
-export type CodePartyAction = { type: "party"; payload: CodePartyStart };
+export type CodePartyAction = { type: "codeparty"; payload: CodePartyStart };
 
 export type Action = DefaultAction | RegisterAction | CodePartyAction;

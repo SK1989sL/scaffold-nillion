@@ -15,8 +15,12 @@ import {
   AlertTitle,
   Box,
   Button,
+  Center,
   Checkbox,
   Heading,
+  Input,
+  InputGroup,
+  InputLeftAddon,
   Link as ChakraLink,
   Modal,
   ModalBody,
@@ -24,6 +28,8 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  NumberInput,
+  NumberInputField,
   Stack,
   Text,
   useDisclosure,
@@ -41,7 +47,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { Web3 } from "web3";
 
-import { InputBase } from "~~/components/scaffold-eth";
 import { Address } from "~~/components/scaffold-eth";
 import { usePartyBackend } from "~~/hooks/nillion";
 import { shortenKeyHelper } from "~~/utils/scaffold-eth";
@@ -52,15 +57,20 @@ const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
   const { partyState, partyQueue, dispatch } = usePartyBackend();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: formIsOpen, onOpen: formOnOpen, onClose: formOnClose } =
+    useDisclosure();
 
   const [connectedToSnap, setConnectedToSnap] = useState<boolean>(false);
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
-  const [codeSubmitted, setCodeSubmitted] = useState<boolean | null>(null);
+  const [codeSubmitted, setCodeSubmitted] = useState<boolean | undefined>(
+    undefined,
+  );
   const [selectedPeers, setSelectedPeers] = useState({});
+  const [showPartyForm, setShowPartyForm] = useState<boolean>(false);
 
-  const [nadalang, setNadalang] = useState(`
+  const [nadalang, setNadalang] = useState<string>(`
 from nada_dsl import *
 def nada_main():
     party1 = Party(name="Party1")
@@ -72,17 +82,43 @@ def nada_main():
     return [Output(output, "my_output", party1)]
 `);
 
+  const [partyContrib, setPartyContrib] = useState(null);
   const [client, setClient] = useState(null);
   const [nillion, setNillion] = useState(null);
+
+  // var accounts = await web3.eth.getAccounts();
+  // web3.eth.getBalance("0x407d73d8a49eeb85d32cf465507dd71d507100c1")
 
   const closeCodeModal = () => {
     setCodeError(null);
     setCodeSubmitted(null);
     onClose();
   };
-  const onNadalangChange = useCallback((val, viewUpdate) => {
+  const onNadalangChange = useCallback((val) => {
     setNadalang(val);
   }, []);
+
+  const onPartyContrib = useCallback((val) => {
+    setPartyContrib(val);
+  }, []);
+
+  const onSubmitContrib = async () => {
+    console.log(`starting submit to Nillion Network`);
+    const binding = new nillion.ProgramBindings(
+      partyQueue?.programid,
+    );
+    const my_secrets = new nillion.Secrets();
+    const encoded = await nillion.encode_unsigned_integer_secret(
+      `Value1`,
+      { as_string: String(partyContrib) },
+    );
+    await my_secrets.insert(encoded);
+    await client.store_secrets(
+      partyState.config.cluster_id,
+      my_secrets,
+      binding,
+    );
+  };
 
   const onStartParty = async () => {
     setCodeSubmitted(true);
@@ -94,8 +130,6 @@ def nada_main():
       `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
     );
 
-    // await
-    // https://ofnzkxpntb.execute-api.eu-west-1.amazonaws.com/testnet-fe/upload-nada-source
     const url = `${backend}/upload-nada-source/${codeName}-program`;
 
     // encode nadalang source code so that I don't have serialization issues
@@ -109,25 +143,28 @@ def nada_main():
         },
         body: JSON.stringify({ nadalang: base64EncodedString }),
       });
-      if (!response.status === 200) {
+      if (!(response.status === 200)) {
         setCodeError(`server error`);
-        setCodeSubmitted(null);
+        setCodeSubmitted(undefined);
         return;
       }
       const result = await response.json();
       console.log(`got program response: ${JSON.stringify(result, null, 4)}`);
       if (result?.statusCode !== 200) {
         setCodeError(result?.error);
-        setCodeSubmitted(null);
+        setCodeSubmitted(undefined);
         return;
       }
       dispatch({
-        type: "party",
+        type: "codeparty",
         payload: { peers: partyPeople, programid: result.programid },
       });
       closeCodeModal();
     } catch (error) {
       console.error("Error posting program: ", error);
+      setCodeError(`server error`);
+      setCodeSubmitted(undefined);
+      return;
     }
   };
 
@@ -140,13 +177,13 @@ def nada_main():
   };
 
   useEffect(() => {
-    if (partyQueue === undefined) return;
-    for (let codeparty in partyQueue) {
-      if (codeName in codeparty.peers) {
-        console.log(`you're a selected party member!`);
-      }
+    if (partyQueue === null) return;
+    if (partyQueue.peers.includes(codeName)) {
+      console.log(`you're a selected party member!`);
+      formOnOpen();
     }
   }, [partyQueue, codeName]);
+
   useEffect(() => {
     if (!userKey) return;
     const myName = uniqueNamesGenerator({
@@ -157,8 +194,8 @@ def nada_main():
 
     console.log(`Your codename is : ${myName}`);
     setCodeName(myName);
-    console.log(partyState.config.payments_config.rpc_endpoint);
-    const web3 = new Web3(partyState.config.payments_config.rpc_endpoint);
+    console.log(partyState?.config.payments_config.rpc_endpoint);
+    const web3 = new Web3(partyState?.config.payments_config.rpc_endpoint);
     const account = web3.eth.accounts.create();
 
     (async () => {
@@ -186,15 +223,15 @@ def nada_main():
       await _nillion.default();
 
       const nodekey = _nillion.NodeKey.from_seed(
-        `test-seed-${Object.keys(partyState).length}`,
+        `test-seed-${Object.keys(partyState?.peers).length}`,
       );
       const _userkey = _nillion.UserKey.from_base58(userKey);
-      const payments_config = partyState.config.payments_config;
+      const payments_config = partyState?.config.payments_config;
       payments_config.signer.wallet["private_key"] = account.privateKey;
       const _client = new _nillion.NillionClient(
         _userkey,
         nodekey,
-        partyState.config.bootnodes,
+        partyState?.config.bootnodes,
         false,
         payments_config,
       );
@@ -266,10 +303,14 @@ def nada_main():
           </h1>
 
           <div>
-            <Button onClick={onOpen}>Start a Party</Button>
+            {userKey && (
+              <Center>
+                <Button onClick={onOpen}>Start a Party</Button>
+              </Center>
+            )}
 
             {partyState && (
-              <Modal isOpen={partyState && isOpen} onClose={closeCodeModal}>
+              <Modal size={'full'} isOpen={partyState && isOpen} onClose={closeCodeModal}>
                 <ModalOverlay />
                 <ModalContent>
                   <ModalHeader>Let's Start a Code Party!</ModalHeader>
@@ -286,7 +327,7 @@ def nada_main():
                     <Stack spacing={5} direction="column">
                       <CodeMirror
                         value={nadalang}
-                        height="200px"
+                        height="300px"
                         extensions={[python()]}
                         onChange={onNadalangChange}
                       // theme={TODO}
@@ -308,12 +349,10 @@ def nada_main():
                       <Heading as="h4" size="sm">
                         Select Your Party Peers
                       </Heading>
-                      {Object.keys(partyState).filter((p) =>
-                        p !== "config"
-                      )
-                        .map((
-                          p,
-                        ) => (
+                      {Object.keys(partyState?.peers).map((
+                        p, idx
+                      ) => (
+                        <Stack spacing={2} direction="column">
                           <Checkbox
                             key={`checkbox-${p}`}
                             name={p}
@@ -322,7 +361,20 @@ def nada_main():
                             {p}
                             {p === codeName ? " (you)" : ""}
                           </Checkbox>
-                        ))}
+                          <InputGroup size="xs">
+                            <InputLeftAddon>
+                              as
+                            </InputLeftAddon>
+                            <Input placeholder={`Party${idx+1}`} size="xs" />
+                          </InputGroup>
+                          <InputGroup size="xs">
+                            <InputLeftAddon>
+                              secret
+                            </InputLeftAddon>
+                            <Input placeholder={`my_int${idx+1}`} size="xs" />
+                          </InputGroup>
+                        </Stack>
+                      ))}
                     </Stack>
                   </ModalBody>
 
@@ -342,6 +394,33 @@ def nada_main():
               </Modal>
             )}
           </div>
+
+          <Modal isOpen={formIsOpen} onClose={formOnClose}>
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>Contribute to your CodeParty</ModalHeader>
+              <ModalBody>
+                <Heading as="h4" size="sm">Submit Your Value</Heading>
+                <Stack spacing={5} direction="column">
+                  <NumberInput>
+                    <NumberInputField size="lg" onChange={onPartyContrib} />
+                  </NumberInput>
+                </Stack>
+              </ModalBody>
+
+              <ModalFooter>
+                <Button
+                  colorScheme="blue"
+                  mr={3}
+                  onClick={onSubmitContrib}
+                >
+                  Go!
+                </Button>
+                <Button onClick={formOnClose} variant="ghost">Abort</Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+
           {connectedToSnap && (
             <div>
               <div className="flex justify-center items-center space-x-2">
