@@ -1,4 +1,3 @@
-
 export type Config = {
   cluster_id: string;
   bootnodes: string[];
@@ -29,13 +28,27 @@ export type CodePartyBinding = {
   peerid: string;
   programid: string;
   partyname: string | null;
-  inputname: string | null;
-  inputtype: string | null;
-}
+  codename: string;
+  inputs: NadaInputs[] | null;
+};
+
+export type NadaInputs = {
+  type: string;
+  name: string;
+};
+
+export type NadaExtracts = {
+  partyname: string;
+  inputs: NadaInputs[];
+};
+
+export type ProgramExtracts = {
+  [key: string]: NadaExtracts;
+};
 
 export type CodePartyBindings = {
   [key: string]: CodePartyBinding;
-}
+};
 
 export type CodePartyQueue = CodePartyStart;
 
@@ -45,13 +58,13 @@ export type Baseline = {
 };
 
 export type CodePartyStart = {
-	peers: string[];
-	programid: string;
+  peers: string[];
+  programid: string;
 };
 
 export type Envelope = {
-	type: string;
-	payload: Baseline | BookEntry | CodePartyStart;
+  type: string;
+  payload: Baseline | BookEntry | CodePartyStart;
 };
 
 export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
