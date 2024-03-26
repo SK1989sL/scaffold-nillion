@@ -111,7 +111,7 @@ def faucet(address):
             {
                 "from": prime_account.address,
                 "to": address,
-                "value": 1
+                "value": 1000000000000000000
             }
         )
 
