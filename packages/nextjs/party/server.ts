@@ -13,15 +13,15 @@ export default class Server implements Party.Server {
         wallet: { chain_id: 22255222 },
       },
       smart_contract_addresses: {
-        blinding_factors_manager: "0xf66cb23aa5857ae1d34a23ce385fa78495c50c69",
-        payments: "0xc166ce8bfc56e4493ffd43a99db234a9f0413443",
+        blinding_factors_manager: "0xb70da9f42eb0b7e9494345bacff4ed13bea3c49f",
+        payments: "0xc93bb22751a8bc8943f972b37075e8d1d2fec844",
       },
     },
   };
 
   phonebook: Nillion.PhoneBook = {};
 
-  constructor(readonly room: Party.Room) {}
+  constructor(readonly room: Party.Room) { }
 
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     // A websocket just connected!
@@ -36,12 +36,12 @@ export default class Server implements Party.Server {
   }
 
   baseline: Nillion.Envelope = {
-      type: "baseline",
-      payload: {
-        config: this.config,
-        peers: this.phonebook,
-      }
-  }
+    type: "baseline",
+    payload: {
+      config: this.config,
+      peers: this.phonebook,
+    },
+  };
 
   onMessage(message: string, sender: Party.Connection) {
     // let's log the message
@@ -51,7 +51,7 @@ export default class Server implements Party.Server {
     // in the message data, but for simplicity we just use a string
     switch (envelope?.type) {
       case "register":
-        this.register({...envelope.payload, codepartyid: sender.id});
+        this.register({ ...envelope.payload, codepartyid: sender.id });
         break;
       case "codeparty":
         this.codeparty(envelope.payload);
@@ -69,7 +69,7 @@ export default class Server implements Party.Server {
 
   register(payload: Nillion.BookEntry) {
     console.log(`broadcasting phonebook change`);
-    this.phonebook[payload["handle"]] = payload
+    this.phonebook[payload["handle"]] = payload;
     this.room.broadcast(JSON.stringify(this.baseline), []);
   }
 
