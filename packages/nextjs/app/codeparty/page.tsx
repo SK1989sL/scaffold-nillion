@@ -61,6 +61,7 @@ import {
   Text,
   useDisclosure,
   useSteps,
+  useToast,
 } from "@chakra-ui/react";
 import {
   adjectives,
@@ -92,28 +93,7 @@ const Home: NextPage = () => {
   const [codePartyBindings, setCodePartyBindings] = useState<
     NillionType.CodePartyBindings
   >([]);
-
-  const onStartParty = async () => {
-    try {
-      const partyPeople = Object.keys(selectedPeers).filter((p) =>
-        selectedPeers[p]
-      );
-      console.log(
-        `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
-      );
-
-      dispatch({
-        type: "codeparty",
-        payload: { peers: partyPeople, programid: result.programid },
-      });
-      closeCodeModal();
-    } catch (error) {
-      console.error("Error posting program: ", error);
-      setCodeError(`server error: ${error}`);
-      setPartyButtonBusy(undefined);
-      return;
-    }
-  };
+  const toast = useToast();
 
   const onAssignPeerBindings = async () => {
     try {
@@ -138,9 +118,6 @@ const Home: NextPage = () => {
       });
       setActiveStep(2);
       setCodePartyBindings(bindingInit);
-      console.log(
-        `starting this party with ${JSON.stringify(partyPeople, null, 4)}`,
-      );
     } catch (error) {
       console.error("Error posting program: ", error);
       setCodeError(`server error: ${error}`);
@@ -206,6 +183,9 @@ const Home: NextPage = () => {
   const [codeName, setCodeName] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [contribError, setContribError] = useState<string | null>(null);
+  const [contribButtonBusy, setContribButtonBusy] = useState<boolean | undefined>(
+    undefined,
+  );
 
   const [partyButtonBusy, setPartyButtonBusy] = useState<boolean | undefined>(
     undefined,
@@ -250,6 +230,7 @@ def nada_main():
   const onSubmitContrib = async () => {
     const task = partyQueue[partyState.peers[codeName].peerid];
     try {
+      setContribButtonBusy(true);
       console.log(
         `starting submit to Nillion Network: ${JSON.stringify(task, null, 4)}`,
       );
@@ -257,15 +238,15 @@ def nada_main():
         task.programid,
       );
       const party_id = await client.party_id();
-      binding.add_input_party(task.partyname, party_id);
+      // binding.add_input_party(task.partyname, party_id);
 
       const my_secrets = new nillion.Secrets();
 
       if (task.inputs[0].type === "SecretInteger") {
         console.log(
-          `storing unsignedinteger`,
+          `storing signedinteger`,
         );
-        const encoded = await nillion.encode_unsigned_integer_secret(
+        const encoded = await nillion.encode_signed_integer_secret(
           task.inputs[0].name,
           { as_string: String(partyContrib) },
         );
@@ -277,7 +258,7 @@ def nada_main():
         );
       } else {
         console.log(`storing blob`);
-        const encoded = await nillion.encode_unsigned_integer_secret(
+        const encoded = await nillion.encode_blob_secret(
           task.inputs[0].name,
           { as_string: String(partyContrib) },
         );
@@ -288,13 +269,23 @@ def nada_main():
           binding,
         );
       }
+      toast({
+        title: "Secret stored",
+        description: "Very nice.",
+        status: "success",
+        duration: 4000,
+        isClosable: true,
+      });
       dispatch({
         type: "contrib",
         payload: { peerid: userKey, status: "ok" },
       });
+      setContribButtonBusy(undefined);
+      formOnClose();
     } catch (error) {
       console.error("Error storing program secret: ", error);
       setContribError(`network error: ${error}`);
+      setContribButtonBusy(undefined);
       dispatch({
         type: "contrib",
         payload: { peerid: userKey, status: "error" },
@@ -388,7 +379,9 @@ def nada_main():
       const payments_config = partyState?.config.payments_config;
       const pkWithout0x = account.privateKey.replace(/^0x/, "");
       payments_config.signer.wallet["private_key"] = pkWithout0x;
-      console.log(`using payments_config: ${JSON.stringify(payments_config, null, 4)}`);
+      console.log(
+        `using payments_config: ${JSON.stringify(payments_config, null, 4)}`,
+      );
       const _client = new _nillion.NillionClient(
         _userkey,
         nodekey,
@@ -397,7 +390,9 @@ def nada_main():
         payments_config,
       );
 
-      const status = await _client.cluster_information(partyState?.config.cluster_id);
+      const status = await _client.cluster_information(
+        partyState?.config.cluster_id,
+      );
       console.log(JSON.stringify(
         status,
         null,
@@ -771,6 +766,7 @@ def nada_main():
                   <Button
                     colorScheme="blue"
                     mr={3}
+                    isLoading={contribButtonBusy}
                     onClick={onSubmitContrib}
                   >
                     Go!
