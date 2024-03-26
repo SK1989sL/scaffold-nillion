@@ -44,6 +44,7 @@ import {
   ModalOverlay,
   NumberInput,
   NumberInputField,
+  Progress,
   Radio,
   RadioGroup,
   Select,
@@ -85,13 +86,23 @@ const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
-  const { partyState, partyQueue, dispatch } = usePartyBackend();
+  const {
+    partyState,
+    partyQueue,
+    partyResults,
+    networkContribError,
+    setProgramId,
+    programId,
+    dispatch,
+  } = usePartyBackend();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: formIsOpen, onOpen: formOnOpen, onClose: formOnClose } =
     useDisclosure();
-  const [programId, setProgramId] = useState<string | null>(null);
   const [codePartyBindings, setCodePartyBindings] = useState<
     NillionType.CodePartyBindings
+  >([]);
+  const [codePartyResults, setCodePartyResults] = useState<
+    NillionType.CodePartyResults
   >([]);
   const toast = useToast();
 
@@ -153,8 +164,8 @@ const Home: NextPage = () => {
         setCodeError(result?.error);
         return;
       }
-      setActiveStep(1);
       setProgramId(result.programid);
+      setActiveStep(1);
     } catch (error) {
       console.error("Error posting program: ", error);
       setCodeError(`server error: ${error}`);
@@ -164,6 +175,11 @@ const Home: NextPage = () => {
     }
   };
 
+  const onExecuteProgram = () => {
+    // codePartyBindings should match codePartyResults
+    console.log(`got all the results back - starting execute!`);
+  };
+
   const steps = [
     { title: "First", description: "Upload Program", onClick: onSubmitCode },
     {
@@ -171,7 +187,11 @@ const Home: NextPage = () => {
       description: "Select Peers",
       onClick: onAssignPeerBindings,
     },
-    { title: "Third", description: "Execute Program", onClick: null },
+    {
+      title: "Third",
+      description: "Execute Program",
+      onClick: onExecuteProgram,
+    },
   ];
   const { activeStep, setActiveStep } = useSteps({
     index: 0,
@@ -183,7 +203,9 @@ const Home: NextPage = () => {
   const [codeName, setCodeName] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [contribError, setContribError] = useState<string | null>(null);
-  const [contribButtonBusy, setContribButtonBusy] = useState<boolean | undefined>(
+  const [contribButtonBusy, setContribButtonBusy] = useState<
+    boolean | undefined
+  >(
     undefined,
   );
 
@@ -209,6 +231,10 @@ def nada_main():
   );
   const [client, setClient] = useState(null);
   const [nillion, setNillion] = useState(null);
+  const [partyContribComplete, setPartyContribComplete] = useState<boolean>(
+    false,
+  );
+  const [partyContribWait, setPartyContribWait] = useState<boolean>(false);
   const [nadaParsed, setNadaParsed] = useState<
     NillionType.ProgramExtracts | null
   >(null);
@@ -234,13 +260,16 @@ def nada_main():
       console.log(
         `starting submit to Nillion Network: ${JSON.stringify(task, null, 4)}`,
       );
+      console.log(`1.0`);
       const binding = new nillion.ProgramBindings(
         task.programid,
       );
-      const party_id = await client.party_id();
+      console.log(`1.1`);
+      // const party_id = await client.party_id();
       // binding.add_input_party(task.partyname, party_id);
 
       const my_secrets = new nillion.Secrets();
+      console.log(`1.2`);
 
       if (task.inputs[0].type === "SecretInteger") {
         console.log(
@@ -278,7 +307,7 @@ def nada_main():
       });
       dispatch({
         type: "contrib",
-        payload: { peerid: userKey, status: "ok" },
+        payload: { peerid: userKey, status: "ok", programid: task.programid },
       });
       setContribButtonBusy(undefined);
       formOnClose();
@@ -288,7 +317,11 @@ def nada_main():
       setContribButtonBusy(undefined);
       dispatch({
         type: "contrib",
-        payload: { peerid: userKey, status: "error" },
+        payload: {
+          peerid: userKey,
+          status: "error",
+          programid: task.programid,
+        },
       });
       return;
     }
@@ -327,6 +360,16 @@ def nada_main():
   }, [programId, nadalang]);
 
   useEffect(() => {
+    if ((programId === null) || (partyResults === null)) return;
+    if (
+      Object.keys(partyResults).length === Object.keys(codePartyBindings).length
+    ) {
+      console.log(`you've collected results!`);
+      setPartyContribComplete(true);
+    }
+  }, [partyResults, programId]);
+
+  useEffect(() => {
     if ((partyQueue === null) || (userKey === null)) return;
     if (userKey in partyQueue) {
       console.log(`you're a selected party member!`);
@@ -363,11 +406,11 @@ def nada_main():
       console.log(`got faucet response: ${JSON.stringify(result, null, 4)}`);
       if (result?.statusCode !== 200) {
         setCodeError(result?.error);
-        setPartyButtonBusy(null);
+        setPartyButtonBusy(undefined);
         return;
       }
 
-      console.log(`using dynamic wallet in nillion client`);
+      console.log(`using dynamic wallet in nillion client: ${result.tx}`);
 
       const _nillion = await import("@nillion/nillion-client-js-browser");
       await _nillion.default();
@@ -443,7 +486,7 @@ def nada_main():
     }
   }
 
-  console.log(`activeStep: ${activeStep}`);
+  console.log(`programId: [${programId}] activeStep: [${activeStep}]`);
   console.log(`parsed: `);
   console.log(JSON.stringify(nadaParsed, null, 4));
   console.log(`selectedPeers: `);
@@ -672,7 +715,14 @@ def nada_main():
                           </h2>
                           {activeStep === 2 && (
                             <AccordionPanel pb={4}>
-                              This is a test
+                              {(!partyContribComplete) && (
+                                <>
+                                  <Text fontSize="lg">
+                                    Waiting for peer contribution
+                                  </Text>
+                                  <Progress size="xs" isIndeterminate />
+                                </>
+                              )}
                             </AccordionPanel>
                           )}
                         </AccordionItem>
@@ -685,7 +735,7 @@ def nada_main():
                       colorScheme="blue"
                       mr={3}
                       isLoading={partyButtonBusy}
-                      isDisabled={peerBindingConflict || peerToPartiesConflict}
+                      // isDisabled={peerBindingConflict || peerToPartiesConflict}
                       loadingText="Working..."
                       onClick={steps[activeStep].onClick}
                     >

@@ -6,8 +6,17 @@ import type * as Nillion from "~~/types/nillion";
 const PARTY_TRACKER = "apollo.wehrenterprises.org:1999";
 
 export const usePartyBackend = () => {
+  const [programId, setProgramId] = useState<string | null>(null);
+  const [networkContribError, setNetworkContribError] = useState<string | null>(
+    null,
+  );
   const [partyState, setPartyState] = useState<Nillion.Baseline | null>(null);
   const [partyQueue, setPartyQueue] = useState<Nillion.CodePartyQueue | null>(
+    null,
+  );
+  const [partyResults, setPartyResults] = useState<
+    Nillion.CodePartyResults | null
+  >(
     null,
   );
 
@@ -31,6 +40,18 @@ export const usePartyBackend = () => {
         case "codeparty":
           setPartyQueue(envelope.payload);
           break;
+        case "contrib":
+          if (envelope.payload.programid !== programId) {
+            console.log(`this broadcast is not for my program`);
+          } else if (envelope.payload.status === "error") {
+            setNetworkContribError(envelope.payload.peerid);
+          } else {
+            setPartyResults((prev) => ({
+              ...prev,
+              [envelope.payload.peerid]: envelope.payload,
+            }));
+          }
+          break;
       }
     },
 
@@ -49,8 +70,11 @@ export const usePartyBackend = () => {
   };
 
   return {
+    programId,
+    setProgramId,
     partyState,
     partyQueue,
+    partyResults,
     dispatch,
   };
 };

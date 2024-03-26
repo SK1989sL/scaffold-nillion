@@ -32,6 +32,19 @@ export type CodePartyBinding = {
   inputs: NadaInputs[] | null;
 };
 
+export type CodePartyBindings = {
+  [key: string]: CodePartyBinding;
+};
+
+export type CodePartyResult = {
+  peerid: string;
+  status: string;
+  programid: string;
+};
+
+export CodePartyResults = {
+  [key: string]: CodePartyResult;
+}
 export type NadaInputs = {
   type: string;
   name: string;
@@ -44,10 +57,6 @@ export type NadaExtracts = {
 
 export type ProgramExtracts = {
   [key: string]: NadaExtracts;
-};
-
-export type CodePartyBindings = {
-  [key: string]: CodePartyBinding;
 };
 
 export type CodePartyQueue = CodePartyStart;
