@@ -6,6 +6,10 @@ import serverless_wsgi
 import subprocess
 import tempfile
 from waterbear import Bear
+from eth_account import Account
+from eth_account.signers.local import LocalAccount
+from web3 import Web3, EthereumTesterProvider
+from web3.middleware import construct_sign_and_send_raw_middleware, geth_poa_middleware
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -29,6 +33,7 @@ CORS(app)
 
 @app.route("/upload-nada-source/<program_name>", methods=["POST"])
 async def upload_nada_source(program_name):
+    print(f"starting upload-nada-source of {program_name}")
     data = request.get_json()
     base64_nadasource = data["nadalang"]
     source = base64.b64decode(base64_nadasource).decode("utf-8")
@@ -76,37 +81,47 @@ async def upload_nada_source(program_name):
     result = await client.store_program(
         config.cluster_id, program_name, compiled_program
     )
-    return jsonify({"statusCode": 200, "programid": result})
+    return jsonify(
+        {
+            "statusCode": 200,
+            "guid": result,
+            "programid": f"{client.user_id()}/{program_name}",
+        }
+    )
 
 
 @app.route("/faucet/<address>", methods=["POST"])
 def faucet(address):
 
-    print(f"starting faucet for address {address}")
     try:
-        result = subprocess.run(
-            [
-                BIN_CAST,
-                "send",
-                "--private-key",
-                NILLION_FAUCET_PK,
-                "--rpc-url",
-                "https://rpc-endpoint.testnet-fe.nilogy.xyz",
-                address,
-                "--value",
-                "10ether",
-            ],
-            capture_output=True,
-            text=True,
-            shell=True,
-        )
-        if "failed" in result.stderr.lower():
-            raise Exception("|".join([result.stderr, result.stdout]))
-    except Exception as e:
-        error_message = f"pynadac execution failed: {e}"
-        return jsonify({"statusCode": 400, "error": error_message})
+        print(f"starting faucet for address {address}")
 
-    return jsonify({"statusCode": 200, "message": "OK"})
+        rpc_url = "https://rpc-endpoint.testnet-fe.nilogy.xyz"
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+        assert w3.is_connected(), "Failed to connect to rpc backend"
+
+        prime_account: LocalAccount = Account.from_key(NILLION_FAUCET_PK)
+        w3.middleware_onion.add(construct_sign_and_send_raw_middleware(prime_account))
+        
+        print(f"Your hot wallet address is {prime_account.address}")
+
+        tx_hash = w3.eth.send_transaction(
+            {
+                "from": prime_account.address,
+                "to": address,
+                "value": 1
+            }
+        )
+
+        tx = w3.eth.get_transaction(tx_hash)
+        assert tx["from"] == prime_account.address
+        return jsonify({"statusCode": 200, "tx": tx_hash.hex()})
+
+    except Exception as e:
+        error_message = f"faucet execution failed: {e}"
+        return jsonify({"statusCode": 400, "error": error_message})
 
 
 def handler(event, context):

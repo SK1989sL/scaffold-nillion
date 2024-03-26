@@ -51,7 +51,7 @@ export default class Server implements Party.Server {
     // in the message data, but for simplicity we just use a string
     switch (envelope?.type) {
       case "register":
-        this.register(envelope.payload);
+        this.register({...envelope.payload, codepartyid: sender.id});
         break;
       case "codeparty":
         this.codeparty(envelope.payload);
@@ -68,11 +68,13 @@ export default class Server implements Party.Server {
   }
 
   register(payload: Nillion.BookEntry) {
-    this.phonebook[payload["handle"]] = payload;
+    console.log(`broadcasting phonebook change`);
+    this.phonebook[payload["handle"]] = payload
     this.room.broadcast(JSON.stringify(this.baseline), []);
   }
 
   codeparty(payload: Nillion.CodePartyStart) {
+    console.log(`broadcasting codeparty`);
     const codeparty: Nillion.Envelope = {
       type: "codeparty",
       payload,
