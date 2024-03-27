@@ -37,7 +37,7 @@ export const usePartyBackend = () => {
         case "baseline":
           setPartyState(envelope.payload);
           break;
-        case "codeparty":
+        case "codeparty-task":
           setPartyQueue(envelope.payload);
           break;
         case "contrib":

@@ -123,20 +123,23 @@ const Home: NextPage = () => {
         selectedPeers,
       ).reduce((acc, p) => {
         acc[
-          partyState.peers[p].peerid
+          partyState.peers[p].codepartyid
         ] = {
-          peerid: partyState.peers[p].peerid,
           codepartyid: partyState.peers[p].codepartyid,
-          programid: programId,
           owner: codeName,
+          peerid: partyState.peers[p].peerid,
+          programid: programId,
           ...nadaParsed[selectedPeers[p]],
         };
         return acc;
       }, {});
 
       dispatch({
-        type: "codeparty",
-        payload: bindingInit,
+        type: "codeparty-start",
+        payload: {
+          peers: bindingInit,
+          programid: programId,
+        },
       });
       setActiveStep(2);
       setCodePartyBindings(bindingInit);
@@ -265,7 +268,7 @@ def nada_main():
   const onPartyContrib = (event) => setPartyContrib(event.target.value);
 
   const onSubmitContrib = async () => {
-    const task = partyQueue[partyState.peers[codeName].peerid];
+    const task = partyQueue;
     try {
       setContribButtonBusy(true);
       console.log(
@@ -382,10 +385,8 @@ def nada_main():
 
   useEffect(() => {
     if ((partyQueue === null) || (userKey === null)) return;
-    if (userKey in partyQueue) {
-      console.log(`you're a selected party member!`);
-      formOnOpen();
-    }
+    console.log(`you're a selected party member!`);
+    formOnOpen();
   }, [partyQueue, userKey]);
 
   const addAndSwitchNetwork = async () => {
@@ -599,7 +600,7 @@ def nada_main():
   console.log(JSON.stringify(partyContrib, null, 4));
 
   partyQueue && console.log(
-    JSON.stringify(partyQueue[partyState.peers[codeName].peerid], null, 4),
+    JSON.stringify(partyQueue, null, 4),
   );
 
   const PeerButton = (props) => {
@@ -897,7 +898,7 @@ def nada_main():
                 <ModalHeader>
                   Contribute to{"  "}
                   <Text as="span" color="blue.500">
-                    {partyQueue[partyState.peers[codeName].peerid].owner}
+                    {partyQueue.owner}
                     {"'s "}
                   </Text>
                   CodeParty!
@@ -906,12 +907,12 @@ def nada_main():
                   <Heading fontFamily="monospace" as="h4" size="sm">
                     You are{" "}
                     <Text as="span" color="blue.500">
-                      {partyQueue[partyState.peers[codeName].peerid].partyname}
+                      {partyQueue.partyname}
                       {" "}
                     </Text>
                     of programid{"  "}
                     <Text as="span" color="blue.500">
-                      {partyQueue[partyState.peers[codeName].peerid].programid}
+                      {partyQueue.programid}
                     </Text>
                   </Heading>
                   {contribError && (
@@ -932,11 +933,11 @@ def nada_main():
                   <Stack spacing={5} direction="column">
                     <InputGroup>
                       <InputLeftAddon>
-                        {partyQueue[partyState.peers[codeName].peerid].inputs[0]
+                        {partyQueue.inputs[0]
                           .type}
                       </InputLeftAddon>
 
-                      {partyQueue[partyState.peers[codeName].peerid].inputs[0]
+                      {partyQueue.inputs[0]
                         .type === "SecretInteger"
                         ? (
                           <NumberInput>

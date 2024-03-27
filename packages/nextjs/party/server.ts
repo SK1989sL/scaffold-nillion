@@ -5,7 +5,9 @@ export default class Server implements Party.Server {
   chain: Nillion.Chain = {
     chainId: "0x1539676",
     chainName: "nillion fe testnet",
-    iconUrls: ["https://nillion.com/wp-content/themes/nillion/assets/images/favicon.png"],
+    iconUrls: [
+      "https://nillion.com/wp-content/themes/nillion/assets/images/favicon.png",
+    ],
     nativeCurrency: {
       name: "Nillion",
       symbol: "NIL",
@@ -66,9 +68,14 @@ export default class Server implements Party.Server {
       case "register":
         this.register({ ...envelope.payload, codepartyid: sender.id });
         break;
-      case "codeparty":
+      case "codeparty-start":
         this.codeparty(envelope.payload);
         break;
+      case "contrib":
+        this.contrib(envelope.payload);
+        break;
+      default:
+        console.log(`onMessage: unknown type: ${envelope?.type}`);
     }
   }
 
@@ -86,10 +93,14 @@ export default class Server implements Party.Server {
     this.room.broadcast(JSON.stringify(this.baseline), []);
   }
 
-  codeparty(payload: Nillion.CodePartyStart) {
+  contrib(payload: Nillion.CodePartyContrib) {
     console.log(`broadcasting codeparty`);
+  }
+
+  codeparty(payload: Nillion.CodePartyStart) {
+    console.log(`broadcasting new codeparty`);
     const codeparty: Nillion.Envelope = {
-      type: "codeparty",
+      type: "codeparty-task",
       payload,
     };
     this.room.broadcast(JSON.stringify(codeparty), []);

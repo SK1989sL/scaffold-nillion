@@ -38,10 +38,10 @@ export type PhoneBook = { [key: string]: BookEntry };
 
 export type CodePartyBinding = {
   codepartyid: string;
+  owner: string;
   peerid: string;
   programid: string;
   partyname: string | null;
-  codename: string;
   inputs: NadaInputs[] | null;
 };
 
@@ -49,15 +49,17 @@ export type CodePartyBindings = {
   [key: string]: CodePartyBinding;
 };
 
-export type CodePartyResult = {
+export type CodePartyContrib = {
+  ownercodepartyid: string;
   peerid: string;
   status: string;
   programid: string;
 };
 
-export CodePartyResults = {
-  [key: string]: CodePartyResult;
-}
+export type CodePartyResults = {
+  [key: string]: CodePartyContrib;
+};
+
 export type NadaInputs = {
   type: string;
   name: string;
@@ -72,7 +74,7 @@ export type ProgramExtracts = {
   [key: string]: NadaExtracts;
 };
 
-export type CodePartyQueue = CodePartyStart;
+export type CodePartyQueue = CodePartyBinding;
 
 export type Baseline = {
   chain: Chain;
@@ -81,7 +83,7 @@ export type Baseline = {
 };
 
 export type CodePartyStart = {
-  peers: string[];
+  peers: CodePartyBindings;
   programid: string;
 };
 
@@ -92,6 +94,7 @@ export type Envelope = {
 
 export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
 export type RegisterAction = { type: "register"; payload: BookEntry };
-export type CodePartyAction = { type: "codeparty"; payload: CodePartyStart };
+export type CodePartyStartAction = { type: "codeparty-start"; payload: CodePartyStart };
+export type ContribAction = { type: "contrib"; payload: CodePartyContrib };
 
-export type Action = DefaultAction | RegisterAction | CodePartyAction;
+export type Action = DefaultAction | RegisterAction | CodePartyStartAction | ContribAction;
