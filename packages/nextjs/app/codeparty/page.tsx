@@ -699,7 +699,7 @@ def nada_main():
                   </CardBody>
                   <Divider />
 
-                  <CardFooter  justify="right">
+                  <CardFooter justify="right">
                     <Button
                       bgGradient="linear(to-r, red.500, orange.500, yellow.500, green.500, blue.500, purple.500, pink.500)"
                       color="white"
@@ -760,7 +760,7 @@ def nada_main():
                       {(partyButtonBusy || activeStep !== 0) && (
                         <Alert status="warning">
                           <AlertIcon />
-                          Editor Locked
+                          🔒 Editor Locked 🔒
                         </Alert>
                       )}
                       <CodeMirror
@@ -775,7 +775,7 @@ def nada_main():
                         <Alert status="error">
                           <AlertIcon />
                           <Box>
-                            <AlertTitle mt={4} mb={1} fontSize="lg">
+                            <AlertTitle py={4} fontSize="lg">
                               There was an error compiling your program
                             </AlertTitle>
                             <AlertDescription maxWidth="sm">
@@ -798,7 +798,7 @@ def nada_main():
                             <AccordionPanel pb={4}>
                               {peerBindingConflict &&
                                 (
-                                  <Box m={2}>
+                                  <Box py={2}>
                                     <Alert status="error">
                                       <AlertIcon />
                                       <Box>
@@ -809,7 +809,7 @@ def nada_main():
                                 )}
                               {peerToPartiesConflict &&
                                 (
-                                  <Box m={2}>
+                                  <Box py={2}>
                                     <Alert status="warning">
                                       <AlertIcon />
                                       <Box>
@@ -995,7 +995,7 @@ def nada_main():
                     </Td>
                   </Tr>
                   <Tr>
-                    <Td>Code Name</Td>
+                    <Td>Your Code Name</Td>
                     <Td>
                       {codeName}
                       <CopyToClipboard text={codeName}>
