@@ -21,6 +21,7 @@ import {
   AlertIcon,
   AlertTitle,
   Avatar,
+  AvatarGroup,
   Badge,
   Box,
   Button,
@@ -30,6 +31,8 @@ import {
   CardHeader,
   Center,
   Checkbox,
+  Code,
+  Divider,
   Flex,
   Heading,
   Input,
@@ -59,7 +62,16 @@ import {
   StepSeparator,
   StepStatus,
   StepTitle,
+  Table,
+  TableCaption,
+  TableContainer,
+  Tbody,
+  Td,
   Text,
+  Tfoot,
+  Th,
+  Thead,
+  Tr,
   useDisclosure,
   useSteps,
   useToast,
@@ -85,7 +97,6 @@ import { shortenKeyHelper } from "~~/utils/scaffold-eth";
 const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
   const {
     partyState,
     partyQueue,
@@ -202,6 +213,7 @@ const Home: NextPage = () => {
   const [userKey, setUserKey] = useState<string | null>(null);
   const [codeName, setCodeName] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
   const [contribError, setContribError] = useState<string | null>(null);
   const [contribButtonBusy, setContribButtonBusy] = useState<
     boolean | undefined
@@ -230,6 +242,8 @@ def nada_main():
     null,
   );
   const [client, setClient] = useState(null);
+  const [mmAddress, setMmAddress] = useState<string | null>(null);
+  const [dynAddress, setDynAddress] = useState<string | null>(null);
   const [nillion, setNillion] = useState(null);
   const [partyContribComplete, setPartyContribComplete] = useState<boolean>(
     false,
@@ -238,9 +252,6 @@ def nada_main():
   const [nadaParsed, setNadaParsed] = useState<
     NillionType.ProgramExtracts | null
   >(null);
-
-  // var accounts = await web3.eth.getAccounts();
-  // web3.eth.getBalance("0x407d73d8a49eeb85d32cf465507dd71d507100c1")
 
   const closeCodeModal = () => {
     setCodeError(null);
@@ -379,6 +390,10 @@ def nada_main():
 
   const addAndSwitchNetwork = async () => {
     const myChain = partyState?.chain.chainId;
+    if (!myChain) {
+      setGlobalError("failed to pull chain from network");
+      return;
+    }
 
     try {
       const currentChainId = await window.ethereum.request({
@@ -409,6 +424,7 @@ def nada_main():
         duration: 9000,
         isClosable: false,
       });
+      setGlobalError("Metamask network must be testnet");
     }
   };
 
@@ -433,8 +449,9 @@ def nada_main():
           mm_accounts[0],
         ],
       });
-      const balanceInEth = Web3.utils.fromWei(mm_balance, 'ether');
+      const balanceInEth = Web3.utils.fromWei(mm_balance, "ether");
       const mm_checksumAddr = Web3.utils.toChecksumAddress(mm_accounts[0]);
+      setMmAddress(mm_checksumAddr);
       if (parseFloat(balanceInEth) < 0.5) {
         // this wallet needs funding
         toast({
@@ -464,20 +481,25 @@ def nada_main():
             duration: 9000,
             isClosable: false,
           });
-          console.log(`using dynamic wallet in nillion client: ${result.tx}`);
+          setGlobalError("Dynamic wallet must be funded");
           return;
         }
+        console.log(`using dynamic wallet in nillion client: ${result.tx}`);
       }
-      console.log(`mm balance of ${mm_checksumAddr}: ${JSON.stringify(mm_balance, null, 4)}`);
+      console.log(
+        `mm balance of ${mm_checksumAddr}: ${JSON.stringify(mm_balance, null, 4)
+        }`,
+      );
 
       const mm_web3 = new Web3(window.ethereum); // metamask
       const web3 = new Web3(partyState?.config.payments_config.rpc_endpoint); // poa network
       const account = web3.eth.accounts.create();
+      setDynAddress(account.address);
 
       const txSend = {
         to: account.address,
         from: mm_checksumAddr,
-        value: web3.utils.toWei('0.1', 'ether')
+        value: web3.utils.toWei("0.1", "ether"),
       };
       console.log(`mm tx: ${JSON.stringify(txSend, null, 4)}`);
       const txHash = await mm_web3.eth.sendTransaction(txSend);
@@ -619,8 +641,28 @@ def nada_main():
   return (
     <>
       <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
+        <Stack spacing={4} direction={"column"}>
+          {globalError && (
+            <Alert
+              status="error"
+              variant="subtle"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              textAlign="center"
+            >
+              <AlertIcon />
+              <Box>
+                <AlertTitle mt={4} mb={1} fontSize="lg">
+                  In Error State (restart required)
+                </AlertTitle>
+                <AlertDescription maxWidth="sm">
+                  {globalError}
+                </AlertDescription>
+              </Box>
+            </Alert>
+          )}
+          <Center>
             <Image
               alt="codeparty logo"
               className="null-pointer"
@@ -628,21 +670,46 @@ def nada_main():
               height={200}
               src="/codeparty.png"
             />
-            {!connectedToSnap && (
-              <button
-                className="btn btn-sm btn-primary mt-4"
+          </Center>
+          {!connectedToSnap && (
+            <Center>
+              <Button
                 onClick={connectAndCallSnap}
               >
-                Connect to Snap
-              </button>
-            )}
-          </h1>
+                🚀 Connect to Nillion & Fund Session 💸
+              </Button>
+            </Center>
+          )}
+        </Stack>
 
+        <div className="px-5">
           <div>
             {userKey && (
-              <Center>
-                <Button onClick={onOpen}>Start a Party</Button>
-              </Center>
+              <Box flex="1" py={5}>
+                <Card variant={"outline"}>
+                  <CardHeader>
+                    <Heading size="xs">Waiting Room</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <AvatarGroup size="md" max={2}>
+                      {Object.keys(partyState?.peers).map((peer) => (
+                        <Avatar name={peer} />
+                      ))}
+                    </AvatarGroup>
+                  </CardBody>
+                  <Divider />
+
+                  <CardFooter  justify="right">
+                    <Button
+                      bgGradient="linear(to-r, red.500, orange.500, yellow.500, green.500, blue.500, purple.500, pink.500)"
+                      color="white"
+                      onClick={onOpen}
+                    >
+                      Start a Party
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </Box>
             )}
 
             {partyState && (
@@ -848,17 +915,19 @@ def nada_main():
                     </Text>
                   </Heading>
                   {contribError && (
-                    <Alert status="error">
-                      <AlertIcon />
-                      <Box>
-                        <AlertTitle mt={4} mb={1} fontSize="lg">
-                          There was an error submitting your input
-                        </AlertTitle>
-                        <AlertDescription maxWidth="sm">
-                          {contribError}
-                        </AlertDescription>
-                      </Box>
-                    </Alert>
+                    <Box py={2}>
+                      <Alert status="error">
+                        <AlertIcon />
+                        <Box>
+                          <AlertTitle mt={4} mb={1} fontSize="lg">
+                            There was an error submitting your input
+                          </AlertTitle>
+                          <AlertDescription maxWidth="sm">
+                            {contribError}
+                          </AlertDescription>
+                        </Box>
+                      </Alert>
+                    </Box>
                   )}
                   <Stack spacing={5} direction="column">
                     <InputGroup>
@@ -898,49 +967,55 @@ def nada_main():
           )}
 
           {connectedToSnap && (
-            <div>
-              <div className="flex justify-center items-center space-x-2">
-                <p className="my-2 font-medium">Connected Address:</p>
-                <Address address={connectedAddress} />
-              </div>
-
-              <div className="flex justify-center items-center space-x-2">
-                <p className="my-2 font-medium">Connected Nillion User Key:</p>
-                {userKey && (
-                  <span className="flex">
-                    {shortenKeyHelper(userKey)}
-                    <CopyToClipboard text={userKey}>
-                      <DocumentDuplicateIcon
-                        className="ml-1.5 text-xl font-normal text-sky-600 h-5 w-5 cursor-pointer"
-                        aria-hidden="true"
-                      />
-                    </CopyToClipboard>
-                  </span>
-                )}
-              </div>
-
-              <div className="flex justify-center items-center space-x-2">
-                <p className="my-2 font-medium">Code Name:</p>
-                {codeName && (
-                  <span className="flex">
-                    {codeName}
-                    <CopyToClipboard text={codeName}>
-                      <DocumentDuplicateIcon
-                        className="ml-1.5 text-xl font-normal text-sky-600 h-5 w-5 cursor-pointer"
-                        aria-hidden="true"
-                      />
-                    </CopyToClipboard>
-                  </span>
-                )}
-              </div>
-            </div>
+            <TableContainer py={10}>
+              <Table variant="striped">
+                <Tbody>
+                  <Tr>
+                    <Td>Metamask Connected Address</Td>
+                    <Td>
+                      <Address address={mmAddress} />
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Dynamic Testnet Address</Td>
+                    <Td>
+                      <Address address={dynAddress} />
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Nillion User Key</Td>
+                    <Td>
+                      {shortenKeyHelper(userKey)}
+                      <CopyToClipboard text={userKey}>
+                        <DocumentDuplicateIcon
+                          className="ml-1.5 text-xl font-normal text-sky-600 h-5 w-5 cursor-pointer"
+                          aria-hidden="true"
+                        />
+                      </CopyToClipboard>
+                    </Td>
+                  </Tr>
+                  <Tr>
+                    <Td>Code Name</Td>
+                    <Td>
+                      {codeName}
+                      <CopyToClipboard text={codeName}>
+                        <DocumentDuplicateIcon
+                          className="ml-1.5 text-xl font-normal text-sky-600 h-5 w-5 cursor-pointer"
+                          aria-hidden="true"
+                        />
+                      </CopyToClipboard>
+                    </Td>
+                  </Tr>
+                </Tbody>
+              </Table>
+            </TableContainer>
           )}
         </div>
 
-        <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
-            {!connectedToSnap
-              ? (
+        {!connectedToSnap
+          ? (
+            <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
+              <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
                 <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-m rounded-3xl">
                   <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
                   <p>
@@ -966,18 +1041,33 @@ def nada_main():
                     </ol>
                   </p>
                 </div>
-              )
-              : (
-                <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-m rounded-3xl">
-                  Connected as {codeName} : {userKey}
-                  <hr />
-                  <Text as="kbd" align="left">
-                    {JSON.stringify(partyState, null, 4)}
-                  </Text>
-                </div>
-              )}
-          </div>
-        </div>
+              </div>
+            </div>
+          )
+          : (
+            <>
+              <Accordion allowToggle>
+                <AccordionItem>
+                  <h2>
+                    <AccordionButton>
+                      <Box as="span" flex="1" textAlign="left">
+                        Party Baseline Configuration
+                      </Box>
+                      <AccordionIcon />
+                    </AccordionButton>
+                  </h2>
+                  <AccordionPanel pb={4}>
+                    <Text>
+                      Connected as {codeName} : {userKey}
+                    </Text>
+                    <Code>
+                      {JSON.stringify(partyState, null, 4)}
+                    </Code>
+                  </AccordionPanel>
+                </AccordionItem>
+              </Accordion>
+            </>
+          )}
       </div>
     </>
   );
