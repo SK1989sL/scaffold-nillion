@@ -2,6 +2,18 @@ import type * as Party from "partykit/server";
 import type * as Nillion from "../types/nillion";
 
 export default class Server implements Party.Server {
+  chain: Nillion.Chain = {
+    chainId: 22255222,
+    chainName: "nillion fe testnet",
+    iconUrls: ["https://nillion.com/wp-content/themes/nillion/assets/images/favicon.png"],
+    nativeCurrency: {
+      name: "Nillion",
+      symbol: "NIL",
+      decimals: 18,
+    },
+    rpcUrls: ["https://rpc-endpoint.testnet-fe.nilogy.xyz"],
+    blockExplorerUrls: ["https://blockexplorer.testnet-fe.nilogy.xyz/"],
+  };
   config: Nillion.Config = {
     cluster_id: "f592f8ea-7651-4ab8-b692-ef149b783dc9",
     bootnodes: [
@@ -38,6 +50,7 @@ export default class Server implements Party.Server {
   baseline: Nillion.Envelope = {
     type: "baseline",
     payload: {
+      chain: this.chain,
       config: this.config,
       peers: this.phonebook,
     },

@@ -1,3 +1,16 @@
+export type Chain = {
+  chainId: number;
+  chainName: string;
+  iconUrls: string[];
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  },
+  rpcUrls: string[];
+  blockExplorerUrls: string[];
+};
+
 export type Config = {
   cluster_id: string;
   bootnodes: string[];
