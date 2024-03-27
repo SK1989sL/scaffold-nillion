@@ -265,8 +265,8 @@ def nada_main():
         task.programid,
       );
       console.log(`1.1`);
-      // const party_id = await client.party_id();
-      // binding.add_input_party(task.partyname, party_id);
+      const party_id = await client.party_id();
+      binding.add_input_party(task.partyname, party_id);
 
       const my_secrets = new nillion.Secrets();
       console.log(`1.2`);
@@ -377,6 +377,41 @@ def nada_main():
     }
   }, [partyQueue, userKey]);
 
+  const addAndSwitchNetwork = async () => {
+    const myChain = partyState?.chain.chainId;
+
+    try {
+      const currentChainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
+      if (currentChainId === myChain) {
+        console.log("Desired network is already active.");
+        return;
+      }
+
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [partyState?.chain],
+      });
+      toast({
+        title: "Metamask Success",
+        description: "Network added and switched successfully",
+        status: "success",
+        duration: 4000,
+        isClosable: false,
+      });
+    } catch (error) {
+      console.log(JSON.stringify(error, null, 4));
+      toast({
+        title: "Metamask Fail",
+        description: `Error adding network or switching`,
+        status: "error",
+        duration: 9000,
+        isClosable: false,
+      });
+    }
+  };
+
   useEffect(() => {
     if (!userKey) return;
     const myName = uniqueNamesGenerator({
@@ -385,32 +420,67 @@ def nada_main():
       seed: userKey,
     });
 
-    console.log(`Your codename is : ${myName}`);
     setCodeName(myName);
-    console.log(partyState?.config.payments_config.rpc_endpoint);
-    const web3 = new Web3(partyState?.config.payments_config.rpc_endpoint);
-    const account = web3.eth.accounts.create();
 
     (async () => {
-      console.log(
-        `posting dynamic wallet [${account.address}] to faucet webservice`,
-      );
-      const url = `${backend}/faucet/${account.address}`;
-      const response = await fetch(url, {
-        method: "POST",
+      await addAndSwitchNetwork();
+      const mm_accounts = await window.ethereum.request({
+        "method": "eth_requestAccounts",
       });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const mm_balance = await window.ethereum.request({
+        "method": "eth_getBalance",
+        "params": [
+          mm_accounts[0],
+        ],
+      });
+      const balanceInEth = Web3.utils.fromWei(mm_balance, 'ether');
+      const mm_checksumAddr = Web3.utils.toChecksumAddress(mm_accounts[0]);
+      if (parseFloat(balanceInEth) < 0.5) {
+        // this wallet needs funding
+        toast({
+          title: "Auto-faucet",
+          description: "Funding your metamask account automatically",
+          status: "success",
+          duration: 2000,
+          isClosable: false,
+        });
+        console.log(
+          `posting dynamic wallet [${mm_checksumAddr}] to faucet webservice`,
+        );
+        const url = `${backend}/faucet/${mm_checksumAddr}`;
+        const response = await fetch(url, {
+          method: "POST",
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        console.log(`got faucet response: ${JSON.stringify(result, null, 4)}`);
+        if (result?.statusCode !== 200) {
+          toast({
+            title: "Faucet Fail",
+            description: `Error adding funds to address ${mm_accounts[0]}`,
+            status: "error",
+            duration: 9000,
+            isClosable: false,
+          });
+          console.log(`using dynamic wallet in nillion client: ${result.tx}`);
+          return;
+        }
       }
-      const result = await response.json();
-      console.log(`got faucet response: ${JSON.stringify(result, null, 4)}`);
-      if (result?.statusCode !== 200) {
-        setCodeError(result?.error);
-        setPartyButtonBusy(undefined);
-        return;
-      }
+      console.log(`mm balance of ${mm_checksumAddr}: ${JSON.stringify(mm_balance, null, 4)}`);
 
-      console.log(`using dynamic wallet in nillion client: ${result.tx}`);
+      const mm_web3 = new Web3(window.ethereum); // metamask
+      const web3 = new Web3(partyState?.config.payments_config.rpc_endpoint); // poa network
+      const account = web3.eth.accounts.create();
+
+      const txSend = {
+        to: account.address,
+        from: mm_checksumAddr,
+        value: web3.utils.toWei('0.1', 'ether')
+      };
+      console.log(`mm tx: ${JSON.stringify(txSend, null, 4)}`);
+      const txHash = await mm_web3.eth.sendTransaction(txSend);
 
       const _nillion = await import("@nillion/nillion-client-js-browser");
       await _nillion.default();

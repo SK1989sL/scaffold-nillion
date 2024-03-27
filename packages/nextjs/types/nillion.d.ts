@@ -75,6 +75,7 @@ export type ProgramExtracts = {
 export type CodePartyQueue = CodePartyStart;
 
 export type Baseline = {
+  chain: Chain;
   config: Config;
   peers: PhoneBook;
 };
