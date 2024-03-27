@@ -42,11 +42,11 @@ export const usePartyBackend = () => {
           setPartyQueue(envelope.payload);
           break;
         case "codeparty-result":
-          if (envelope.payload.programid === programId && envelope.payload.owner === codeName) {
+          if (envelope.payload.programid === programId) {
             // setNetworkContribError(envelope.payload.peerid);
             setPartyResults((prev) => ({
               ...prev,
-              [envelope.payload.peerid]: envelope.payload,
+              [envelope.payload.handle]: envelope.payload,
             }));
           }
           break;

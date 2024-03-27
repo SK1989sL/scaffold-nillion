@@ -104,7 +104,7 @@ export default class Server implements Party.Server {
 
   codeparty(payload: Nillion.CodePartyStart) {
     Object.keys(payload.peers).map(p => {
-      console.log(`sending codeparty task`);
+      console.log(`sending codeparty task to ${p}`);
       const task: Nillion.Envelope = {
         type: "codeparty-task",
         payload: payload.peers[p],

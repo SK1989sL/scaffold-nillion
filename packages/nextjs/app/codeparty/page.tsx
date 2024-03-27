@@ -128,8 +128,9 @@ const Home: NextPage = () => {
         acc[
           partyState.peers[p].codepartyid
         ] = {
-          codepartyid: partyState.peers[p].codepartyid,
-          owner: partyState.peers[codeName].codepartyid,
+          owner: codeName,
+          handle: partyState.peers[p].handle,
+          ownercodepartyid: partyState.peers[codeName].codepartyid,
           peerid: partyState.peers[p].peerid,
           programid: programId,
           ...nadaParsed[selectedPeers[p]],
@@ -325,10 +326,8 @@ def nada_main():
       dispatch({
         type: "contrib",
         payload: {
-          ownercodepartyid: partyState.peers[
-            task.owner
-          ].codepartyid,
-          peerid: userKey,
+          ownercodepartyid: task?.ownercodepartyid,
+          handle: codeName,
           status: "ok",
           programid: task.programid,
         },
@@ -350,10 +349,8 @@ def nada_main():
       dispatch({
         type: "contrib",
         payload: {
-          ownercodepartyid: partyState.peers[
-            task.owner
-          ].codepartyid,
-          peerid: userKey,
+          ownercodepartyid: task?.ownercodepartyid,
+          handle: codeName,
           status: "error",
           programid: task.programid,
         },

@@ -37,8 +37,9 @@ export type BookEntry = {
 export type PhoneBook = { [key: string]: BookEntry };
 
 export type CodePartyBinding = {
-  codepartyid: string;
   owner: string;
+  handle: string;
+  ownercodepartyid: string;
   peerid: string;
   programid: string;
   partyname: string | null;
@@ -51,7 +52,7 @@ export type CodePartyBindings = {
 
 export type CodePartyContrib = {
   ownercodepartyid: string;
-  peerid: string;
+  handle: string;
   status: string;
   programid: string;
 };
