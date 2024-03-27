@@ -3,7 +3,7 @@ import type * as Nillion from "../types/nillion";
 
 export default class Server implements Party.Server {
   chain: Nillion.Chain = {
-    chainId: 22255222,
+    chainId: "0x1539676",
     chainName: "nillion fe testnet",
     iconUrls: ["https://nillion.com/wp-content/themes/nillion/assets/images/favicon.png"],
     nativeCurrency: {
