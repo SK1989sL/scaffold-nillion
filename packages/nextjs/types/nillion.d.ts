@@ -96,5 +96,6 @@ export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
 export type RegisterAction = { type: "register"; payload: BookEntry };
 export type CodePartyStartAction = { type: "codeparty-start"; payload: CodePartyStart };
 export type ContribAction = { type: "contrib"; payload: CodePartyContrib };
+export type ContribTask = { type: "codeparty-task"; payload: CodePartyBinding };
 
 export type Action = DefaultAction | RegisterAction | CodePartyStartAction | ContribAction;

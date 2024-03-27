@@ -98,12 +98,14 @@ export default class Server implements Party.Server {
   }
 
   codeparty(payload: Nillion.CodePartyStart) {
-    console.log(`broadcasting new codeparty`);
-    const codeparty: Nillion.Envelope = {
-      type: "codeparty-task",
-      payload,
-    };
-    this.room.broadcast(JSON.stringify(codeparty), []);
+    Object.keys(payload.peers).map(p => {
+      console.log(`sending codeparty task`);
+      const task: Nillion.Envelope = {
+        type: "codeparty-task",
+        payload.peers[p],
+      };
+      this.room.getConnection(p)?.send(JSON.stringify(task));
+    })
   }
 }
 

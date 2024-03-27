@@ -38,6 +38,7 @@ export const usePartyBackend = () => {
           setPartyState(envelope.payload);
           break;
         case "codeparty-task":
+          console.log(`got a program task assignment`);
           setPartyQueue(envelope.payload);
           break;
         case "contrib":
