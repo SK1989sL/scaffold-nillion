@@ -94,7 +94,12 @@ export default class Server implements Party.Server {
   }
 
   contrib(payload: Nillion.CodePartyContrib) {
-    console.log(`broadcasting codeparty`);
+    console.log(`routing result`);
+    const result: Nillion.Envelope = {
+      type: "codeparty-result",
+      payload: payload,
+    };
+    this.room.getConnection(payload.ownercodepartyid)?.send(JSON.stringify(result));
   }
 
   codeparty(payload: Nillion.CodePartyStart) {

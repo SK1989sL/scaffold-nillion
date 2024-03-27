@@ -41,12 +41,9 @@ export const usePartyBackend = () => {
           console.log(`got a program task assignment`);
           setPartyQueue(envelope.payload);
           break;
-        case "contrib":
-          if (envelope.payload.programid !== programId) {
-            console.log(`this broadcast is not for my program`);
-          } else if (envelope.payload.status === "error") {
-            setNetworkContribError(envelope.payload.peerid);
-          } else {
+        case "codeparty-result":
+          if (envelope.payload.programid === programId && envelope.payload.owner === codeName) {
+            // setNetworkContribError(envelope.payload.peerid);
             setPartyResults((prev) => ({
               ...prev,
               [envelope.payload.peerid]: envelope.payload,

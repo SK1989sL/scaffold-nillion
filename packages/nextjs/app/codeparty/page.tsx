@@ -107,8 +107,11 @@ const Home: NextPage = () => {
     dispatch,
   } = usePartyBackend();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: formIsOpen, onOpen: formOnOpen, onClose: formOnClose } =
-    useDisclosure();
+  const {
+    isOpen: contribFormIsOpen,
+    onOpen: contribFormOnOpen,
+    onClose: contribFormOnClose,
+  } = useDisclosure();
   const [codePartyBindings, setCodePartyBindings] = useState<
     NillionType.CodePartyBindings
   >([]);
@@ -126,7 +129,7 @@ const Home: NextPage = () => {
           partyState.peers[p].codepartyid
         ] = {
           codepartyid: partyState.peers[p].codepartyid,
-          owner: codeName,
+          owner: partyState.peers[codeName].codepartyid,
           peerid: partyState.peers[p].peerid,
           programid: programId,
           ...nadaParsed[selectedPeers[p]],
@@ -321,17 +324,35 @@ def nada_main():
       });
       dispatch({
         type: "contrib",
-        payload: { peerid: userKey, status: "ok", programid: task.programid },
+        payload: {
+          ownercodepartyid: partyState.peers[
+            task.owner
+          ].codepartyid,
+          peerid: userKey,
+          status: "ok",
+          programid: task.programid,
+        },
       });
       setContribButtonBusy(undefined);
-      formOnClose();
+      contribFormOnClose();
     } catch (error) {
       console.error("Error storing program secret: ", error);
-      setContribError(`network error: ${error}`);
+      // setContribError(`network error: ${error}`);
+      toast({
+        title: "Contrib Fail",
+        description: `Error sending inputs to network ${error}`,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
       setContribButtonBusy(undefined);
+      contribFormOnClose();
       dispatch({
         type: "contrib",
         payload: {
+          ownercodepartyid: partyState.peers[
+            task.owner
+          ].codepartyid,
           peerid: userKey,
           status: "error",
           programid: task.programid,
@@ -386,7 +407,7 @@ def nada_main():
   useEffect(() => {
     if ((partyQueue === null) || (userKey === null)) return;
     console.log(`you're a selected party member!`);
-    formOnOpen();
+    contribFormOnOpen();
   }, [partyQueue, userKey]);
 
   const addAndSwitchNetwork = async () => {
@@ -579,6 +600,7 @@ def nada_main():
     }
   }
 
+  // DEBUG OUTPUT
   console.log(`programId: [${programId}] activeStep: [${activeStep}]`);
   console.log(`parsed: `);
   console.log(JSON.stringify(nadaParsed, null, 4));
@@ -590,6 +612,7 @@ def nada_main():
 
   const peerToPartiesConflict =
     Object.keys(selectedPeers).length !== Object.keys(nadaParsed ?? {}).length;
+
   console.log(`codeparty init?:`);
   console.log(JSON.stringify(codePartyBindings, null, 4));
 
@@ -599,9 +622,13 @@ def nada_main():
   console.log(`codeparty contrib?:`);
   console.log(JSON.stringify(partyContrib, null, 4));
 
+  console.log(`partyQueue: `);
   partyQueue && console.log(
     JSON.stringify(partyQueue, null, 4),
   );
+
+  console.log(`partyResults: `);
+  console.log(JSON.stringify(partyResults, null, 4));
 
   const PeerButton = (props) => {
     if (nadaParsed === null) return;
@@ -890,8 +917,8 @@ def nada_main():
             <Modal
               size={"3xl"}
               motionPreset={"slideInBottom"}
-              isOpen={formIsOpen}
-              onClose={formOnClose}
+              isOpen={contribFormIsOpen}
+              onClose={contribFormOnClose}
             >
               <ModalOverlay />
               <ModalContent>
@@ -961,7 +988,9 @@ def nada_main():
                   >
                     Go!
                   </Button>
-                  <Button onClick={formOnClose} variant="ghost">Abort</Button>
+                  <Button onClick={contribFormOnClose} variant="ghost">
+                    Abort
+                  </Button>
                 </ModalFooter>
               </ModalContent>
             </Modal>
@@ -1058,9 +1087,10 @@ def nada_main():
                     </AccordionButton>
                   </h2>
                   <AccordionPanel pb={4}>
-                    <Text>
-                      Connected as {codeName} : {userKey}
-                    </Text>
+                    <Code>
+                      You are connected as {codeName} : {userKey}
+                    </Code>
+                    <Divider py={2} />
                     <Code>
                       {JSON.stringify(partyState, null, 4)}
                     </Code>
