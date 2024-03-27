@@ -102,7 +102,7 @@ export default class Server implements Party.Server {
       console.log(`sending codeparty task`);
       const task: Nillion.Envelope = {
         type: "codeparty-task",
-        payload.peers[p],
+        payload: payload.peers[p],
       };
       this.room.getConnection(p)?.send(JSON.stringify(task));
     })

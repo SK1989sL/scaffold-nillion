@@ -89,7 +89,7 @@ export type CodePartyStart = {
 
 export type Envelope = {
   type: string;
-  payload: Baseline | BookEntry | CodePartyStart;
+  payload: Baseline | BookEntry | CodePartyStart | ContribTask;
 };
 
 export type DefaultAction = { type: "PeerEntered" } | { type: "PeerExit" };
