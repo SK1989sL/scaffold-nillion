@@ -65,6 +65,8 @@ import {
   Table,
   TableCaption,
   TableContainer,
+  Tag,
+  TagLabel,
   Tbody,
   Td,
   Text,
@@ -96,6 +98,18 @@ import { shortenKeyHelper } from "~~/utils/scaffold-eth";
 
 const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
 
+const partyResultsColor = (results, peer) => {
+  if (!results || (!(peer in results))) return "yellow";
+  switch (results[peer].status) {
+    case "ok":
+      return "green";
+    case "error":
+      return "red";
+    default:
+      return "pink";
+  }
+};
+
 const Home: NextPage = () => {
   const {
     partyState,
@@ -112,12 +126,11 @@ const Home: NextPage = () => {
     onOpen: contribFormOnOpen,
     onClose: contribFormOnClose,
   } = useDisclosure();
+
   const [codePartyBindings, setCodePartyBindings] = useState<
-    NillionType.CodePartyBindings
-  >([]);
-  const [codePartyResults, setCodePartyResults] = useState<
-    NillionType.CodePartyResults
-  >([]);
+    NillionType.CodePartyBindings | null
+  >(null);
+
   const toast = useToast();
 
   const onAssignPeerBindings = async () => {
@@ -877,14 +890,61 @@ def nada_main():
                           </h2>
                           {activeStep === 2 && (
                             <AccordionPanel pb={4}>
-                              {(!partyContribComplete) && (
-                                <>
-                                  <Text fontSize="lg">
-                                    Waiting for peer contribution
-                                  </Text>
-                                  <Progress size="xs" isIndeterminate />
-                                </>
-                              )}
+                              <Box flex="1" py={5}>
+                                <Card variant={"outline"}>
+                                  <CardHeader>
+                                    <Heading size="xs">
+                                      Waiting for peer contribution
+                                    </Heading>
+                                  </CardHeader>
+                                  <CardBody>
+                                    <TableContainer>
+                                      <Table variant="simple" size={"sm"}>
+                                        <Tbody>
+                                          {Object.keys(selectedPeers).map(
+                                            (peer) => (
+                                              <Tr>
+                                                <Td>
+                                                  <Tag
+                                                    size="lg"
+                                                    colorScheme={partyResultsColor(
+                                                      partyResults,
+                                                      peer,
+                                                    )}
+                                                    borderRadius="full"
+                                                  >
+                                                    <Avatar
+                                                      size="xs"
+                                                      name={peer}
+                                                      ml={-1}
+                                                      mr={2}
+                                                    />
+                                                    <TagLabel>
+                                                      {peer}
+                                                    </TagLabel>
+                                                  </Tag>
+                                                </Td>
+                                                <Td>
+                                                  {(partyResults &&
+                                                    peer in partyResults)
+                                                    ? partyResults[peer]
+                                                      .status
+                                                    : (
+                                                      <Progress
+                                                        size="md"
+                                                        isIndeterminate
+                                                      />
+                                                    )}
+                                                </Td>
+                                              </Tr>
+                                            ),
+                                          )}
+                                        </Tbody>
+                                      </Table>
+                                    </TableContainer>
+                                  </CardBody>
+                                </Card>
+                              </Box>
                             </AccordionPanel>
                           )}
                         </AccordionItem>
