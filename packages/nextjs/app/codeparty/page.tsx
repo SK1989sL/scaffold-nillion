@@ -163,7 +163,7 @@ const Home: NextPage = () => {
           handle: partyState.peers[p].handle,
           ownercodepartyid: partyState.peers[codeName].codepartyid,
           owneruserid: client.user_id(),
-          peerid: partyState.peers[p].peerid,
+          partyid: partyState.peers[p].partyid,
           programid: programId,
           ...nadaParsed[selectedPeers[p]],
         };
@@ -250,29 +250,29 @@ const Home: NextPage = () => {
       let outputName;
       Object.keys(codePartyBindings).map((i) => {
         console.log(
-          `adding input binding: ${codePartyBindings[i].partyname}: ${codePartyBindings[i].peerid
+          `adding input binding: ${codePartyBindings[i].partyname}: ${codePartyBindings[i].partyid
           }`,
         );
         bindings.add_input_party(
           codePartyBindings[i].partyname,
-          codePartyBindings[i].peerid,
+          codePartyBindings[i].partyid,
         );
 
         if ("output" in codePartyBindings[i]) {
           console.log(
-            `adding output binding: ${codePartyBindings[i].output}: ${codePartyBindings[i].peerid
+            `adding output binding: ${codePartyBindings[i].output}: ${codePartyBindings[i].partyid
             }`,
           );
           outputName = codePartyBindings[i].output;
           bindings.add_output_party(
             codePartyBindings[i].output,
-            codePartyBindings[i].peerid,
+            codePartyBindings[i].partyid,
           );
         }
       });
 
-      const store_ids = Object.values(partyResults).map((i) => i.storeid);
       console.log(`computing with store_ids: ${store_ids}`);
+      const store_ids = Object.values(partyResults).map((i) => i.storeid);
       const empty_secrets = new nillion.Secrets();
       const public_variables = new nillion.PublicVariables();
       const compute_result_uuid = await client.compute(
@@ -392,6 +392,10 @@ def nada_main():
       const binding = new nillion.ProgramBindings(
         task.programid,
       );
+
+      // set the input party to the bindings to specify which party will provide the secret
+      const party_id = await client.party_id();
+      binding.add_input_party(task.partyname, party_id);
 
       const userId = client.user_id();
       const my_secrets = new nillion.Secrets();
@@ -696,7 +700,7 @@ def nada_main():
 
       dispatch({
         type: "register",
-        payload: { handle: myName, peerid: userKey },
+        payload: { handle: myName, partyid: client.party_id },
       });
     })();
   }, [userKey]);

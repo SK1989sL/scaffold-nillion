@@ -30,7 +30,7 @@ export type Config = {
 
 export type BookEntry = {
   handle: string;
-  peerid: string;
+  partyid: string;
   codepartyid: string;
 };
 
@@ -41,7 +41,7 @@ export type CodePartyBinding = {
   handle: string;
   ownercodepartyid: string;
   ownercodeuserid: string;
-  peerid: string;
+  partyid: string;
   programid: string;
   partyname: string | null;
   inputs: NadaInputs[] | null;
