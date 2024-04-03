@@ -40,6 +40,7 @@ export type CodePartyBinding = {
   owner: string;
   handle: string;
   ownercodepartyid: string;
+  ownercodeuserid: string;
   peerid: string;
   programid: string;
   partyname: string | null;
@@ -53,6 +54,7 @@ export type CodePartyBindings = {
 export type CodePartyContrib = {
   ownercodepartyid: string;
   handle: string;
+  storeid: string;
   status: string;
   programid: string;
 };

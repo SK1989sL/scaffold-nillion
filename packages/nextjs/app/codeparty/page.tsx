@@ -98,6 +98,7 @@ import { shortenKeyHelper } from "~~/utils/scaffold-eth";
 
 const backend = process.env.NEXT_PUBLIC_NILLION_BACKEND;
 
+const mkObj = (key, value) => Object.fromEntries([[key, value]]);
 const partyResultsColor = (results, peer) => {
   if (!results || (!(peer in results))) return "yellow";
   switch (results[peer].status) {
@@ -108,6 +109,23 @@ const partyResultsColor = (results, peer) => {
     default:
       return "pink";
   }
+};
+
+const hashString = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
+};
+
+const seededRandom = (seedStr, min, max) => {
+  let seed = hashString(seedStr);
+  seed = (seed * 9301 + 49297) % 233280;
+  const rnd = seed / 233280;
+  return Math.floor(min + rnd * (max - min));
 };
 
 const Home: NextPage = () => {
@@ -144,6 +162,7 @@ const Home: NextPage = () => {
           owner: codeName,
           handle: partyState.peers[p].handle,
           ownercodepartyid: partyState.peers[codeName].codepartyid,
+          owneruserid: client.user_id(),
           peerid: partyState.peers[p].peerid,
           programid: programId,
           ...nadaParsed[selectedPeers[p]],
@@ -206,9 +225,82 @@ const Home: NextPage = () => {
     }
   };
 
-  const onExecuteProgram = () => {
+  const onExecuteProgram = async () => {
     // codePartyBindings should match codePartyResults
+    /*
+    *
+    "unusual-copper-tuna": {
+        "ownercodepartyid": "c0cfc539-ca36-4657-b863-03d681916163",
+        "handle": "unusual-copper-tuna",
+        "status": "ok",
+        "programid": "eefErRvstMDAq67vbYwDMJSUK8zEx3yCT6ETrQv8NyG8Mn9FXVAU5AdZwa5yZn9qNHBGD3GVzevYMsbUWTLcDaU/unusual-copper-tuna-program"
+    },
+    "marine-brown-jackal": {
+        "ownercodepartyid": "c0cfc539-ca36-4657-b863-03d681916163",
+        "handle": "marine-brown-jackal",
+        "status": "ok",
+        "programid": "eefErRvstMDAq67vbYwDMJSUK8zEx3yCT6ETrQv8NyG8Mn9FXVAU5AdZwa5yZn9qNHBGD3GVzevYMsbUWTLcDaU/unusual-copper-tuna-program"
+    }
+    */
     console.log(`got all the results back - starting execute!`);
+
+    try {
+      setExecButtonBusy(true);
+      const bindings = new nillion.ProgramBindings(programId);
+      let outputName;
+      Object.keys(codePartyBindings).map((i) => {
+        console.log(
+          `adding input binding: ${codePartyBindings[i].partyname}: ${codePartyBindings[i].peerid
+          }`,
+        );
+        bindings.add_input_party(
+          codePartyBindings[i].partyname,
+          codePartyBindings[i].peerid,
+        );
+
+        if ("output" in codePartyBindings[i]) {
+          console.log(
+            `adding output binding: ${codePartyBindings[i].output}: ${codePartyBindings[i].peerid
+            }`,
+          );
+          outputName = codePartyBindings[i].output;
+          bindings.add_output_party(
+            codePartyBindings[i].output,
+            codePartyBindings[i].peerid,
+          );
+        }
+      });
+
+      const store_ids = Object.values(partyResults).map((i) => i.storeid);
+      console.log(`computing with store_ids: ${store_ids}`);
+      const empty_secrets = new nillion.Secrets();
+      const public_variables = new nillion.PublicVariables();
+      const compute_result_uuid = await client.compute(
+        partyState?.config.cluster_id,
+        bindings,
+        store_ids,
+        empty_secrets,
+        public_variables,
+      );
+      console.log(`got compute id: ${compute_result_uuid}`);
+
+      const compute_result = client.compute_result(
+        compute_result_uuid,
+      );
+      const result = compute_result[outputName].toString();
+      console.log(`got ${result}`);
+    } catch (error) {
+      console.error("Error compute: ", error);
+      // setContribError(`network error: ${error}`);
+      toast({
+        title: "Compute Fail",
+        description: error,
+        status: "error",
+        duration: 4000,
+        isClosable: true,
+      });
+      setExecButtonBusy(undefined);
+    }
   };
 
   const steps = [
@@ -236,6 +328,12 @@ const Home: NextPage = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [contribError, setContribError] = useState<string | null>(null);
   const [contribButtonBusy, setContribButtonBusy] = useState<
+    boolean | undefined
+  >(
+    undefined,
+  );
+  const [execError, setExecError] = useState<string | null>(null);
+  const [execButtonBusy, setExecButtonBusy] = useState<
     boolean | undefined
   >(
     undefined,
@@ -294,10 +392,16 @@ def nada_main():
       const binding = new nillion.ProgramBindings(
         task.programid,
       );
-      const party_id = await client.party_id();
-      binding.add_input_party(task.partyname, party_id);
 
+      const userId = client.user_id();
       const my_secrets = new nillion.Secrets();
+      const permissions = nillion.Permissions.default_for_user(
+        userId,
+        task.programid,
+      );
+      permissions.add_compute_permissions(
+        mkObj(task.owneruserid, [task.programid]),
+      );
 
       // PublicInteger
       // SecretInteger
@@ -309,6 +413,9 @@ def nada_main():
         case "Integer":
         case "SecretInteger":
         case "PublicInteger":
+          console.log(
+            `insert new_integer: ${task.inputs[0].name}: ${partyContrib}`,
+          );
           my_secrets.insert(
             task.inputs[0].name,
             nillion.Secret.new_integer(partyContrib),
@@ -317,6 +424,10 @@ def nada_main():
         case "Integer":
         case "SecretInteger":
         case "PublicInteger":
+          console.log(
+            `insert new_unsigned_integer: ${task.inputs[0].name
+            }: ${partyContrib}`,
+          );
           my_secrets.insert(
             task.inputs[0].name,
             nillion.Secret.new_unsigned_integer(partyContrib),
@@ -331,6 +442,7 @@ def nada_main():
         partyState.config.cluster_id,
         my_secrets,
         binding,
+        permissions,
       );
       toast({
         title: "Secret stored",
@@ -345,6 +457,7 @@ def nada_main():
           ownercodepartyid: task?.ownercodepartyid,
           handle: codeName,
           status: "ok",
+          storeid: result,
           programid: task.programid,
         },
       });
@@ -384,9 +497,11 @@ def nada_main():
 
   useEffect(() => {
     if (programId === null) return;
-    const extractedPartyNames = /(\w+)\s=\s*Party\(\s*name\s*=\s*"(\w+)"/gm;
     const nadaextracts = {};
+    console.log("ASDASDFASDFAF");
     let match;
+
+    const extractedPartyNames = /(\w+)\s=\s*Party\(\s*name\s*=\s*"(\w+)"/gm;
     while ((match = extractedPartyNames.exec(nadalang)) !== null) {
       nadaextracts[match[1]] = {
         partyname: match[2],
@@ -400,6 +515,12 @@ def nada_main():
       nadaextracts[match[3]].inputs.push(
         { type: match[1], name: match[2] },
       );
+    }
+
+    const extractedResultParty =
+      /Output\(\s*\w+\s*,\s*"(.*?)"\s*,\s*(.*?)\s*\)/gm;
+    while ((match = extractedResultParty.exec(nadalang)) !== null) {
+      nadaextracts[match[2]].output = match[1];
     }
 
     console.log(`nada extracts: `);
@@ -534,7 +655,7 @@ def nada_main():
       const txSend = {
         to: account.address,
         from: mm_checksumAddr,
-        value: web3.utils.toWei("0.1", "ether"),
+        value: web3.utils.toWei("0.5", "ether"),
       };
       console.log(`mm tx: ${JSON.stringify(txSend, null, 4)}`);
       const txHash = await mm_web3.eth.sendTransaction(txSend);
@@ -542,8 +663,11 @@ def nada_main():
       const _nillion = await import("@nillion/nillion-client-js-browser");
       await _nillion.default();
 
+      const randomInt = seededRandom(userKey, 0, 126); // Generates a number between 0 and 125
+      const node_seed = `test-seed-${randomInt}`;
+      console.log(`using node seed ${node_seed}`);
       const nodekey = _nillion.NodeKey.from_seed(
-        `test-seed-10`,
+        node_seed,
       );
       const _userkey = _nillion.UserKey.from_base58(userKey);
       const payments_config = partyState?.config.payments_config;
@@ -612,35 +736,30 @@ def nada_main():
     }
   }
 
-  // DEBUG OUTPUT
-  console.log(`programId: [${programId}] activeStep: [${activeStep}]`);
-  console.log(`parsed: `);
-  console.log(JSON.stringify(nadaParsed, null, 4));
-  console.log(`selectedPeers: `);
-  console.log(JSON.stringify(selectedPeers, null, 4));
-
   const peerBindingConflict = new Set(Object.values(selectedPeers)).size !==
     Object.values(selectedPeers).length;
 
   const peerToPartiesConflict =
     Object.keys(selectedPeers).length !== Object.keys(nadaParsed ?? {}).length;
 
-  console.log(`codeparty init?:`);
-  console.log(JSON.stringify(codePartyBindings, null, 4));
-
-  console.log(`codeparty queue?:`);
-  console.log(JSON.stringify(partyQueue, null, 4));
-
-  console.log(`codeparty contrib?:`);
-  console.log(JSON.stringify(partyContrib, null, 4));
-
-  console.log(`partyQueue: `);
-  partyQueue && console.log(
-    JSON.stringify(partyQueue, null, 4),
-  );
-
-  console.log(`partyResults: `);
-  console.log(JSON.stringify(partyResults, null, 4));
+  // DEBUG OUTPUT
+  console.log(`STATE DUMP: `);
+  console.log(JSON.stringify(
+    {
+      codePartyBindings,
+      partyContrib,
+      partyQueue,
+      nadaParsed,
+      selectedPeers,
+      peerBindingConflict,
+      peerToPartiesConflict,
+      programId,
+      activeStep,
+      partyResults,
+    },
+    null,
+    4,
+  ));
 
   const PeerButton = (props) => {
     if (nadaParsed === null) return;
