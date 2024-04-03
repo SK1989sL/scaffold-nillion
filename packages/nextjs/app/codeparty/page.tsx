@@ -265,13 +265,12 @@ const Home: NextPage = () => {
           );
           outputName = codePartyBindings[i].output;
           bindings.add_output_party(
-            codePartyBindings[i].output,
+            codePartyBindings[i].partyname,
             codePartyBindings[i].partyid,
           );
         }
       });
 
-      console.log(`computing with store_ids: ${store_ids}`);
       const store_ids = Object.values(partyResults).map((i) => i.storeid);
       const empty_secrets = new nillion.Secrets();
       const public_variables = new nillion.PublicVariables();
@@ -698,9 +697,10 @@ def nada_main():
       setClient(_client);
       setNillion(_nillion);
 
+      const party_id = await _client.party_id();
       dispatch({
         type: "register",
-        payload: { handle: myName, partyid: client.party_id },
+        payload: { handle: myName, partyid: party_id },
       });
     })();
   }, [userKey]);
