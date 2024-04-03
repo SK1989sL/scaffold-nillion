@@ -294,8 +294,8 @@ def nada_main():
       const binding = new nillion.ProgramBindings(
         task.programid,
       );
-      // const party_id = await client.party_id();
-      // binding.add_input_party(task.partyname, party_id);
+      const party_id = await client.party_id();
+      binding.add_input_party(task.partyname, party_id);
 
       const my_secrets = new nillion.Secrets();
 
@@ -311,7 +311,7 @@ def nada_main():
         case "PublicInteger":
           my_secrets.insert(
             task.inputs[0].name,
-            nillion.Secret.new_integer_secret(partyContrib),
+            nillion.Secret.new_integer(partyContrib),
           );
           break;
         case "Integer":
@@ -319,23 +319,22 @@ def nada_main():
         case "PublicInteger":
           my_secrets.insert(
             task.inputs[0].name,
-            nillion.Secret.new_unsigned_integer_secret(partyContrib),
+            nillion.Secret.new_unsigned_integer(partyContrib),
           );
           break;
         default:
           throw new Error(
             `unsupported type for a codeparty: ${task.inputs[0].type}`,
           );
-          break;
       }
-      await client.store_secrets(
+      let result = await client.store_secrets(
         partyState.config.cluster_id,
         my_secrets,
         binding,
       );
       toast({
         title: "Secret stored",
-        description: "Very nice.",
+        description: `Store id [${result}]`,
         status: "success",
         duration: 4000,
         isClosable: true,
@@ -791,7 +790,7 @@ def nada_main():
                     <Heading as="h4" size="sm">Paste Your Party Code</Heading>
                     <Badge variant="subtle" colorScheme="blue">
                       <ChakraLink
-                        href="https://docs.nillion.com/nada-lang-framework"
+                        href="https://docs.nillion.com/nada-lang"
                         isExternal
                       >
                         [docs]
