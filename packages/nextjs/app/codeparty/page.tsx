@@ -291,44 +291,48 @@ def nada_main():
       console.log(
         `starting submit to Nillion Network: ${JSON.stringify(task, null, 4)}`,
       );
-      console.log(`1.0`);
       const binding = new nillion.ProgramBindings(
         task.programid,
       );
-      console.log(`1.1`);
-      const party_id = await client.party_id();
-      binding.add_input_party(task.partyname, party_id);
+      // const party_id = await client.party_id();
+      // binding.add_input_party(task.partyname, party_id);
 
       const my_secrets = new nillion.Secrets();
-      console.log(`1.2`);
 
-      if (task.inputs[0].type === "SecretInteger") {
-        console.log(
-          `storing signedinteger`,
-        );
-        const encoded = await nillion.encode_signed_integer_secret(
-          task.inputs[0].name,
-          { as_string: String(partyContrib) },
-        );
-        await my_secrets.insert(encoded);
-        await client.store_secrets(
-          partyState.config.cluster_id,
-          my_secrets,
-          binding,
-        );
-      } else {
-        console.log(`storing blob`);
-        const encoded = await nillion.encode_blob_secret(
-          task.inputs[0].name,
-          { as_string: String(partyContrib) },
-        );
-        await my_secrets.insert(encoded);
-        await client.store_secrets(
-          partyState.config.cluster_id,
-          my_secrets,
-          binding,
-        );
+      // PublicInteger
+      // SecretInteger
+      // Integer
+      // PublicUnsignedInteger
+      // SecretUnsignedInteger
+      // UnsignedInteger
+      switch (task.inputs[0].type) {
+        case "Integer":
+        case "SecretInteger":
+        case "PublicInteger":
+          my_secrets.insert(
+            task.inputs[0].name,
+            nillion.Secret.new_integer_secret(partyContrib),
+          );
+          break;
+        case "Integer":
+        case "SecretInteger":
+        case "PublicInteger":
+          my_secrets.insert(
+            task.inputs[0].name,
+            nillion.Secret.new_unsigned_integer_secret(partyContrib),
+          );
+          break;
+        default:
+          throw new Error(
+            `unsupported type for a codeparty: ${task.inputs[0].type}`,
+          );
+          break;
       }
+      await client.store_secrets(
+        partyState.config.cluster_id,
+        my_secrets,
+        binding,
+      );
       toast({
         title: "Secret stored",
         description: "Very nice.",
@@ -553,7 +557,6 @@ def nada_main():
         _userkey,
         nodekey,
         partyState?.config.bootnodes,
-        false,
         payments_config,
       );
 

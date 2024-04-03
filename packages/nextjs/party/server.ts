@@ -27,8 +27,8 @@ export default class Server implements Party.Server {
         wallet: { chain_id: 22255222 },
       },
       smart_contract_addresses: {
-        blinding_factors_manager: "0xb70da9f42eb0b7e9494345bacff4ed13bea3c49f",
-        payments: "0xc93bb22751a8bc8943f972b37075e8d1d2fec844",
+        blinding_factors_manager: "0xa841c8814aae50790f79b5bfa6c5ecd25071655e",
+        payments: "0x27303ed96fdf3986413c2e0879f7b1a9b17ee7f5"
       },
     },
   };
